@@ -24,23 +24,22 @@ from tkinter import filedialog
 from tkinter import simpledialog
 from tkinter.scrolledtext import ScrolledText
 
-# function declarations
-# setup the webdriver
-options = webdriver.ChromeOptions()
-options.add_argument('--lang=en-GB')
-options.add_argument('--disable-infobars')
-driver = webdriver.Chrome(executable_path="C:\\Program Files (x86)\\ChromeDriver\\chromedriver.exe",
-                          chrome_options=options)
-
-# get resolution
-# screen_width = GetSystemMetrics(0)
-# screen_height = GetSystemMetrics(1)
-
 # get the file directory for use
 filedir = os.path.dirname(__file__)
 
 print(filedir)
 
+# function declarations
+# setup the webdriver
+options = webdriver.ChromeOptions()
+options.add_argument('--lang=en-GB')
+options.add_argument('--disable-infobars')
+driver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir,
+                          chrome_options=options)
+
+# get resolution
+# screen_width = GetSystemMetrics(0)
+# screen_height = GetSystemMetrics(1)
 
 # workaround for sendkeys
 def sendkeyschecker(element, texttosend):
