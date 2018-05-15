@@ -1,1 +1,10 @@
 This file contains all wheels and other required files for installation and running of SISA.
+
+Order of installation.
+
+python -m wheel install LOCATIONOFFILE.whl
+
+pip install wheel
+
+GDAL
+Fiona
