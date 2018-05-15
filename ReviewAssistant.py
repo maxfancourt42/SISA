@@ -14,7 +14,8 @@ import os
 import time
 import pandas
 import datetime
-import requests
+import geopandas
+import matplotlib.pyplot
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
@@ -29,12 +30,15 @@ options.add_argument('--lang=en-GB')
 options.add_argument('--disable-infobars')
 driver = webdriver.Chrome(executable_path="C:\\Program Files (x86)\\ChromeDriver\\chromedriver.exe",
                           chrome_options=options)
+
 # get resolution
 # screen_width = GetSystemMetrics(0)
 # screen_height = GetSystemMetrics(1)
 
 # get the file directory for use
 filedir = os.path.dirname(__file__)
+
+print(filedir)
 
 
 # workaround for sendkeys
@@ -145,13 +149,11 @@ def logout():
     logoutbutton.configure(state=DISABLED)
 
 # function to search for a species using ID
-def searchbyanything(*args):
+def searchbyanything(value):
     # go back to the homepage
     resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
     driver.execute_script("arguments[0].click();", resetimage)
-    # get the searched for term
-    value = anyvariable.get()
-    anyvariable.set("")
+
     # test to see if ID has been given, if so just search for it
     if any(char.isdigit() for char in value):
         # open advanced search box
@@ -185,39 +187,33 @@ def searchbyanything(*args):
         sendkeyschecker(searchbox, str(value))
         time.sleep(1)
 
-        # search for it
         driver.find_element_by_css_selector('.x-window.x-component').find_element_by_css_selector(".x-btn-text").click()
         time.sleep(3)
 
-        # try first element found, click on it
-        try:
-            check = driver.find_element_by_xpath("//*[contains(text(), '%s')]" % value)
-            checktext = check.text
-            if checktext == value:
-                check.click()
-                return 1
-            else:
-                raise WebDriverException
+        # first of all find the number of pages to be searched
+        numberofpagestext = driver.find_elements_by_css_selector(".my-paging-text.x-component")
+        numberofpages = int(numberofpagestext[3].text.split()[1])
 
-        except WebDriverException:
-            for x in range(2, 1000):
-                print("llama%i" % x)
-                try:
-                    check2 = driver.find_element_by_xpath("(//*[contains(text(), '%s')])[position()='%d']" % (value, x))
-                    checktext2 = check2.text
-                    if checktext2 == value:
-                        check2.click()
-                        return 1
-                        break
-
-                except NoSuchElementException:
-                    return 0
-                    driver.find_element_by_css_selector(".x-nodrag.x-tool-close.x-tool.x-component").click()
-                    break
-
-                except WebDriverException:
-                    return 0
-                    pass
+        # create a list of all search results use the number of pages to bound the for loop
+        for x in range(0, numberofpages):
+            driver.implicitly_wait(0)
+            potentiallist = driver.find_elements_by_css_selector(".search_result_taxon_default")
+            # loop through the results on the page
+            for x in potentiallist:
+                # compare text with value searched (case sensitive) if found click, else pass
+                if x.text == value:
+                   x.click()
+                   return 1
+            # if page has been searched then advance to the next page and try again
+            try:
+                potentiallist2 = driver.find_elements_by_css_selector(".x-btn-image")
+                potentiallist2[9].click()
+                potentiallist.clear()
+            except:
+                print("can't press button")
+                break
+        # if after searching all the pages it hasn't been found then return not found (0)
+        return 0
 
 # this function takes input from the database and queries SIS for the species, it then navigates to that page
 def tablesearch():
@@ -322,7 +318,7 @@ def buttonchanger(button, text):
             # userInfrarankSV.set("%s" % text)
 
         else:
-            pass
+           pass
 
     except:
         print("error")
@@ -530,6 +526,21 @@ def duplicateremover():
         buttonchanger("userGenusSV", "")
     if SISSpeciesSV.get() == userSpeciesSV.get():
         buttonchanger("userSpeciesSV", "")
+    # clear up any of the base SIS flags
+    if SISKingdomSV.get() == "SISKingdom":
+        buttonchanger("SISKingdomSV", "")
+    if SISPhylumSV.get() == "SISPhylum":
+        buttonchanger("SISPhylumSV", "")
+    if SISClassSV.get() == "SISClass":
+        buttonchanger("SISClassSV", "")
+    if SISOrderSV.get() == "SISOrder":
+        buttonchanger("SISOrderSV", "")
+    if SISFamilySV.get() == "SISFamily":
+        buttonchanger("SISFamilySV", "")
+    if SISGenusSV.get() == "SISGenus":
+        buttonchanger("SISGenusSV", "")
+    if SISSpeciesSV.get() == "SISSpecies":
+        buttonchanger("SISSpeciesSV", "")
 
 # function to ask user if you want to add species to working set
 def addtoworkingset():
@@ -615,6 +626,7 @@ def addtoworkingset():
 def loaddataandreadyreviewassistant():
     # prompt the user to open the csv they want to read from
     global databasera
+    global fastreviewdirections
 
     try:
         # create the database for review assistant
@@ -731,6 +743,9 @@ def loaddataandreadyreviewassistant():
         # open the tool menu
         createtoolwindow()
 
+        # load the fastdirections file
+        fastreviewdirections = pandas.read_csv("J:\\Red List\\Red List Review Assistant\\Current Active Version\\SupportingFiles\\fastreviewdirections.csv")
+
     except:
         messagebox.showerror("There's a llama afoot", "please select a file to load")
 
@@ -742,23 +757,29 @@ def loaddataandreadytaxassistant():
     try:
         # create the database for review assistant
         filenameta.set(filedialog.askopenfilename())
-        databaseta = pandas.read_excel((filenameta.get()), converters={'Kingdom': str, 'KCheck': str, 'Phylum': str,
-                                                                       'PCheck': str, 'Class': str, 'CCheck': str,
-                                                                       'Order': str, 'OCheck': str, 'Family': str,
-                                                                       'FCheck': str, 'Genus': str, 'GCheck': str,
-                                                                       'Species': str, 'SCheck': str, 'Infrarank': str,
-                                                                       'ICheck': str, 'Taxonomic Authority': str,
+        databaseta = pandas.read_excel((filenameta.get()), converters={'Kingdom': str, 'KCheck': int, 'Phylum': str,
+                                                                       'PCheck': int, 'Class': str, 'CCheck': int,
+                                                                       'Order': str, 'OCheck': int, 'Family': str,
+                                                                       'FCheck': int, 'Genus': str, 'GCheck': int,
+                                                                       'Species': str, 'SCheck': int, 'Infrarank': str,
+                                                                       'ICheck': int, 'Taxonomic Authority': str,
                                                                        'Taxonomic Reference': str, 'Working Set': str,
                                                                        'Species Added?': str, 'Notes': str,
-                                                                       'ID': str})
+                                                                       'ID': str, 'Preprocessed?': int,})
         # undertake data scrubbing
-        databaseta = databaseta.fillna('')
+        databaseta[['Preprocessed?']] = databaseta[['Preprocessed?']].fillna(value=0)
+        databaseta = databaseta.fillna("")
 
         # set the rowtracker to 0
         taxonomyrowtrackerIntVar.set(0)
 
         # reset the screen
         taxonomiccheckerrest()
+
+        # check to see if the next row has blank check values (look in kingdom box for a value)
+        if databaseta.iat[taxonomyrowtrackerIntVar.get(), 22] == 0:
+            preprocess()
+            taxsave()
 
         # load the user data for the first species
         userKingdomSV.set("%s" % databaseta.iat[0, 0])
@@ -770,6 +791,24 @@ def loaddataandreadytaxassistant():
         userSpeciesSV.set("%s" % databaseta.iat[0, 12])
         #userInfrarankSV.set("%s" % databaseta.iat[0, 14])
         CombinationStringVar.set("%s %s %s" % (databaseta.iat[0, 10], databaseta.iat[0, 12], databaseta.iat[0, 14]))
+
+        # set the SIS data to the same if it has a non 0 number in the check column (indicating a match in SIS has been found)
+        if (databaseta.iat[0, 1] != 0):
+            SISKingdomSV.set("%s" % databaseta.iat[0, 0])
+        if (databaseta.iat[0, 3] != 0):
+            SISPhylumSV.set("%s" % databaseta.iat[0, 2])
+        if (databaseta.iat[0, 5] != 0):
+            SISClassSV.set("%s" % databaseta.iat[0, 4])
+        if (databaseta.iat[0, 7] != 0):
+            SISOrderSV.set("%s" % databaseta.iat[0, 6])
+        if (databaseta.iat[0, 9] != 0):
+            SISFamilySV.set("%s" % databaseta.iat[0, 8])
+        if (databaseta.iat[0, 11] != 0):
+            SISGenusSV.set("%s" % databaseta.iat[0, 10])
+        if (databaseta.iat[0, 13] != 0):
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 12])
+        # if (databaseta.iat[rownumber, 15] != 0):
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
 
         # then set the value of the progress tracker to the new value
         taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
@@ -783,12 +822,14 @@ def loaddataandreadytaxassistant():
         elif taxonomyrowtrackerIntVar.get() + 1 >= len(databaseta):
             nextspeciestax.config(state='disabled')
 
+        # remove duplicates and sort out the arrows
+        duplicateremover()
+        arrowsorter()
+
+
         # go to the taxonomic page
         gototaxspecial()
         root.update()
-
-        # update the screen, if first item hasn't been added then run the taxonomy checker and update accordingly
-        taxonomychecker()
 
     except:
         pass
@@ -858,6 +899,9 @@ def reviewsave():
 
     # write the notes field to the database
     databasera.iat[rownumber, 8] = notesbox.get("1.0", "end-1c")
+
+    # write the formula to the final column
+    databasera.iat[rownumber, 9] = '=NOT(OR(G%i="NOT PASSED",H%i="NOT PASSED",I%i="NOT PASSED"))' % (rownumber + 2, rownumber + 2, rownumber + 2)
 
     # write database to the excel document
     writer = pandas.ExcelWriter((filenamera.get()), engine='xlsxwriter')
@@ -1024,18 +1068,94 @@ def taxskipto():
     # check taxonomy of the new record
     #taxonomychecker()
 
+# quit preprocess and return to tax menu
+def preprocessreturn():
+    global preprocesswindow
+    preprocesswindow.destroy()
+    taxadderassistantframe.tkraise()
+
+# opens a toplevel asking the user to preprocess a number of species for addition
+def preprocess():
+    global databaseta
+    global preprocesswindow
+
+    preprocesswindow = Toplevel()
+    preprocesswindow.config(background="#DFE8F6")
+    # position of parent window
+    x = root.winfo_x()
+    y = root.winfo_y()
+
+    w = simplesearchframe.winfo_width()
+    h = simplesearchframe.winfo_height()
+
+    # place the top window
+    preprocesswindow.geometry('%dx%d+%d+%d' % (w, h / 2, x, y + h/2))
+    preprocesswindow.resizable(0, 0)
+
+    # create the various labels required
+    # sum the kingdom column to get number checked
+    databaseta['Preprocessed?'].astype(int)
+    total = databaseta['Preprocessed?'].sum()
+    # check if "" in which case set to 0
+    if total == "":
+        total = 0
+    # labels
+    ttk.Label(preprocesswindow, text="Preprocessing Required to Continue", background="#DFE8F6", font=(None, 15)).grid(column=0, row=0, sticky=EW, columnspan=7)
+    ttk.Label(preprocesswindow, text="%s of %s have already been processed" % (total, len(databaseta)), background="#DFE8F6").grid(column=0, row=1, sticky=EW, columnspan=7)
+    ttk.Label(preprocesswindow, text="You are at number %s" % (taxonomyrowtrackerIntVar.get()), background="#DFE8F6").grid(column=0, row=2, sticky=EW, columnspan=7)
+
+    # buttons
+    # number left in dataset
+    numberleft = len(databaseta) - total
+
+    pre10 = ttk.Button(preprocesswindow, text="Preprocess 10", command=lambda: taxonomychecker(10))
+    pre20 = ttk.Button(preprocesswindow, text="Preprocess 20", command=lambda: taxonomychecker(20))
+    pre50 = ttk.Button(preprocesswindow, text="Preprocess 50", command=lambda: taxonomychecker(50))
+    pre100 = ttk.Button(preprocesswindow, text="Preprocess 100", command=lambda: taxonomychecker(100))
+    ttk.Button(preprocesswindow, text="Preprocess remaining (%i)" % numberleft, command=lambda: taxonomychecker(numberleft)).grid(column=0, row=7, sticky=EW)
+    ttk.Button(preprocesswindow, text="Quit", command=lambda: preprocessreturn()).grid(column=1, row=8, sticky=EW)
+
+    pre10.grid(column=0, row=3, sticky=EW)
+    pre20.grid(column=0, row=4, sticky=EW)
+    pre50.grid(column=0, row=5, sticky=EW)
+    pre100.grid(column=0, row=6, sticky=EW)
+
+    # block buttons that are larger than the number left
+    if 10 > numberleft:
+        pre10.config(state=DISABLED)
+        pre20.config(state=DISABLED)
+        pre50.config(state=DISABLED)
+        pre100.config(state=DISABLED)
+    elif 20 > numberleft:
+        pre20.config(state=DISABLED)
+        pre50.config(state=DISABLED)
+        pre100.config(state=DISABLED)
+    elif 50 > numberleft:
+        pre50.config(state=DISABLED)
+        pre100.config(state=DISABLED)
+    elif 100 > numberleft:
+        pre100.config(state=DISABLED)
+
+    preprocesswindow.columnconfigure((0, 1, 2), weight=1)
+    preprocesswindow.rowconfigure((0, 1, 2, 3, 4), weight=1)
+
 # advance/go back a row of the tax table
 def taxupdate(advorgoback):
     global databaseta
 
+    # reset the screen and display the results
+    taxonomiccheckerrest()
+    copiedtexVar.set("Copy")
+
+    # get current value of the rowtracker
+    rownumber = taxonomyrowtrackerIntVar.get()
 
     # save the current data
     taxsave()
 
     # refresh the page by clicking the SIS logo
     driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel").click()
-    # get current value of the rowtracker
-    rownumber = taxonomyrowtrackerIntVar.get()
+
     # check to make sure that you don't go out of bounds (i.e. can't go below 1)
     if advorgoback == -1 and (rownumber < 0):
         return 0
@@ -1055,27 +1175,42 @@ def taxupdate(advorgoback):
     # then set the value of the progress tracker to the new value
     taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
 
+    if databaseta.iat[taxonomyrowtrackerIntVar.get(), 22] == 0:
+        preprocess()
+        taxsave()
+
     # load the user data for the first species
     userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
-    userPhylumSV.set("%s" % databaseta.iat[rownumber, 1])
-    userClassSV.set("%s" % databaseta.iat[rownumber, 2])
-    userOrderSV.set("%s" % databaseta.iat[rownumber, 3])
-    userFamilySV.set("%s" % databaseta.iat[rownumber, 4])
-    userGenusSV.set("%s" % databaseta.iat[rownumber, 5])
-    userSpeciesSV.set("%s" % databaseta.iat[rownumber, 6])
-
+    userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+    userClassSV.set("%s" % databaseta.iat[rownumber, 4])
+    userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+    userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+    userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+    userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
     # userInfrarankSV.set("%s" % databaseta.iat[0, 7])
-    CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 5], databaseta.iat[rownumber, 6], databaseta.iat[rownumber, 7]))
 
-    # reset the screen
-    taxonomiccheckerrest()
-    copiedtexVar.set("Copy")
+    # set the SIS data to the same if it has a non 0 number in the check column (indicating a match in SIS has been found)
+    if (databaseta.iat[rownumber, 1] != 0):
+        SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+    if (databaseta.iat[rownumber, 3] != 0):
+        SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+    if (databaseta.iat[rownumber, 5] != 0):
+        SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
+    if (databaseta.iat[rownumber, 7] != 0):
+        SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+    if (databaseta.iat[rownumber, 9] != 0):
+        SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+    if (databaseta.iat[rownumber, 11] != 0):
+        SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+    if (databaseta.iat[rownumber, 13] != 0):
+        SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+    #if (databaseta.iat[rownumber, 15] != 0):
+    #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
 
-    # update the screen, if first item hasn't been added then run the taxonomy checker and update accordingly
-    #if advorgoback == 0:
-        #taxonomycheckerwithoutinitialchecks()
-    #else:
-        #taxonomychecker()
+    CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+
+    duplicateremover()
+    arrowsorter()
 
 # skip to the required assessment
 def skiptofunction():
@@ -1195,6 +1330,7 @@ def createtoolwindow():
     validateassessmentbutton = ttk.Button(top, textvariable=validatebuttontext, command=lambda: validateassessment(validatebuttontext.get()))
     nextitem = ttk.Button(top, text=">", command=lambda: gotonextmenuitem(), state=NORMAL)
     previousitem = ttk.Button(top, text="<", command=lambda: gotopreviousmenutiem(), state=NORMAL)
+    loadmapbutton = ttk.Button(top, text="Open Map", command=lambda: loadmap())
 
     # tool window buttons placement
     checkanddownloadbutton.grid(column=0, row=0, sticky=EW)
@@ -1206,6 +1342,7 @@ def createtoolwindow():
     nextitem.grid(column=2, row=1, sticky=EW)
 
     gotoadmin.grid(column=0, row=2, sticky=EW)
+    loadmapbutton.grid(column=2, row=2, sticky=EW)
 
     top.columnconfigure((0, 1, 2), weight=1)
     top.rowconfigure((0, 1, 2), weight=1)
@@ -1357,6 +1494,15 @@ def gotooption(event):
     # hide the selection menu
     dspchoice.withdraw()
 
+# test function to load up the current map
+def loadmap():
+    fp = "C:\\Users\\fancourtm\\Desktop\\Data\\ne_50m_admin_0_countries.shp"
+    data = geopandas.read_file(fp)
+    data.plot(cmap='CMRmap')
+    matplotlib.interactive(False)
+    matplotlib.pyplot.show()
+    pass
+
 # prototype function to allow selection of the available assessments on the taxon page
 def assessmentlistchooser():
     global dspchoice
@@ -1454,7 +1600,7 @@ def generatetadaddertemplate():
         # create the panda datastrucuture with the correct headings
         saveto = StringVar()
         saveto.set("LLAMA")
-        template = pandas.DataFrame(index=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], columns=['Kingdom','KCheck','Phylum','PCheck','Class','CCheck','Order','OCheck','Family','FCheck','Genus','GCheck','Species','SCheck','Infrarank','ICheck','Taxonomic Authority','Taxonomic Reference','Working Set','Species Added?','Notes','ID'])
+        template = pandas.DataFrame(index=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], columns=['Kingdom','KCheck','Phylum','PCheck','Class','CCheck','Order','OCheck','Family','FCheck','Genus','GCheck','Species','SCheck','Infrarank','ICheck','Taxonomic Authority','Taxonomic Reference','Working Set','Species Added?','Notes','ID','Preprocessed?'])
         saveto.set(filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=(("Excel Workbook", "*.xlsx"), ("All Files", "*."))))
 
         # check if no place has been provided.
@@ -1569,7 +1715,7 @@ def add(leveltoadd, databasecolumn, button):
         workingsetvalue = workingsetSV.get()
 
         # get the genus ID from internal dictionary
-        genusid = TaxCurrentSpeciesDict['genus']
+        genusid = databaseta.iat[rownumber, 9]
         try:
             # open advanced search box
             driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
@@ -1700,13 +1846,13 @@ def add(leveltoadd, databasecolumn, button):
         # if it's got this far then all is good, save the species to the database
         try:
             # save the current name to the database (as user may have altered)
-            databaseta.iat[rownumber, 6] = speciesvalue
+            databaseta.iat[rownumber, 12] = speciesvalue
             # change the SIS species label to this new value
             SISSpeciesSV.set(speciesvalue)
             # change the user side to blank
             userSpeciesSV.set("")
             # mark "Species added" column to yes
-            databaseta.iat[rownumber, 11] = "Yes"
+            databaseta.iat[rownumber, 19] = "Yes"
             # rerun the arrow setter and duplicate remover
             arrowsorter()
             duplicateremover()
@@ -1732,14 +1878,14 @@ def add(leveltoadd, databasecolumn, button):
         taxrefvalue = taxrefSV.get()
 
         if leveltoadd == "genus":
-            nextlevel = "family"
+            nextlevel = 9
         elif leveltoadd == "family":
-            nextlevel = "order"
+            nextlevel = 7
         elif leveltoadd == "order":
-            nextlevel = "class"
+            nextlevel = 5
 
         # get the taxlevel ID from internal dictionary
-        taxlevelid = TaxCurrentSpeciesDict['%s' % nextlevel]
+        taxlevelid = databaseta.iat[rownumber, nextlevel]
         try:
             # open advanced search box
             driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
@@ -1944,9 +2090,9 @@ def detailbox(taxlevel, button, databasecolumn):
         # create the text variables
         levelnameSV.set(databaseta.iat[rowcounter, databasecolumn])
         if taxlevel == "species":
-            taxauthSV.set(databaseta.iat[rowcounter, 8])
-            taxrefSV.set(databaseta.iat[rowcounter, 9])
-            workingsetSV.set(databaseta.iat[rowcounter, 10])
+            taxauthSV.set(databaseta.iat[rowcounter, 16])
+            taxrefSV.set(databaseta.iat[rowcounter, 17])
+            workingsetSV.set(databaseta.iat[rowcounter, 18])
         else:
             taxauthSV.set("")
             taxrefSV.set("")
@@ -2009,82 +2155,296 @@ def copyname():
     copiedtexVar.set("Copied")
     root.update()
 
-def searchalgorithm(textbox, refreshbutton, thingtosearch):
+# function to check for synonyms
+def synonymchecker(speciestocheck):
+    # go back to the homepage
+    resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
+    driver.execute_script("arguments[0].click();", resetimage)
+
+    driver.implicitly_wait(1)
+
+    # open advanced search box
+    driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
+
+    # unselect the search common names box
+    driver.execute_script("arguments[0].click();", driver.find_element_by_id('gwt-uid-8'))
+
+    # unselect the Search Scientific names box
+    driver.execute_script("arguments[0].click();", driver.find_element_by_id('gwt-uid-10'))
+
+    # find the input box
+    # find searchbox
+    searchbox = driver.find_element_by_css_selector('.x-window.x-component').find_element_by_css_selector(".gwt-TextBox")
+
     # send the search term
-    textbox.clear()
-    textbox.send_keys("%s" % thingtosearch)
-    sendkeyschecker(textbox, thingtosearch)
+    searchbox.clear()
+    searchbox.send_keys("%s" % speciestocheck)
+    sendkeyschecker(searchbox, str(speciestocheck))
+    time.sleep(1)
 
-    # hit the refresh button to search
-    refreshbutton.click()
-    # find the list elments
-    listofcandidates = None
-    listofcandidates = driver.find_elements_by_css_selector(".sis-data-list-text")
+    # search for the search button and click it
+    driver.find_element_by_css_selector('.x-window.x-component').find_element_by_css_selector(".x-btn-text").click()
+    time.sleep(3)
 
-    # loop over them searching for the correct one
-    for x in listofcandidates:
-        if x.text == "%s" % thingtosearch:
-            # find it and click
-            x.click()
-        else:
-            print("Nope")
-            pass
+    # if a result has been found then click on it and report success
+    try:
+        # click the first one
+        driver.find_elements_by_css_selector(".search_result_taxon_default")[0].click()
+        return 1
+    # if not found then report and return 0
+    except:
+        return 0
 
-# taxonomy searching program 2.0
-def taxonomychecker():
+# reset advanced search options
+def resetadvancedoptions():
+    # go back to the homepage
+    resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
+    driver.execute_script("arguments[0].click();", resetimage)
+
+    # open advanced search box
+    driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
+
+    # unselect the search common names box
+    driver.execute_script("arguments[0].click();", driver.find_element_by_id('gwt-uid-8'))
+
+    # unselect the Search Scientific names box
+    driver.execute_script("arguments[0].click();", driver.find_element_by_id('gwt-uid-10'))
+
+    # close the advanced options box
+    driver.find_element_by_css_selector('.x-nodrag.x-tool-close.x-tool.x-component').click()
+
+# function to grab the taxon ID from the URL
+def gettaxonID():
     global databaseta
 
-    # find the buttons needed for checking
-    textbox = driver.find_elements_by_css_selector(".gwt-TextBox")[0]
-    refreshbutton = driver.find_elements_by_css_selector(".x-btn.x-component.x-btn-icon.x-unselectable")[2]
-    value = "Stillingia spinulosa"
-    # first step search for the genus species combination
-    anyvariable.set(value)
+    # first get the URL, pull the TAXON id out, and store it in the excel document.
+    url = driver.current_url
+    spliturl = url.split('T')
 
-    if searchbyanything() == 1:
-        # if returns 1 then it means a match has been found
-        print("found")
-        # open up the hierarchy and test against the provided taxonomy
-        driver.find_element_by_xpath("//*[contains(text(), 'View Hierarchy')]").click()
-        # scrape the taxonomy from this page
-        fulltaxonomy = driver.find_elements_by_css_selector(".SIS_HyperlinkLookAlike.fontSize14")
-        # compare the scraped taxonomy with the provided taxonomy
-        for x, y in enumerate(fulltaxonomy):
-            if x == 6:
-                speciesonly = y.text.split()[1]
-                if speciesonly == databaseta.iat[0, x * 2]:
-                    print(speciesonly)
-                    databaseta.iat[0, (x*2)+1] = "1"
-                    # mark the species check as good
-                else:
-                    # mark the species check as bad
-                    databaseta.iat[0, (x * 2) + 1] = "0"
-            elif y.text == databaseta.iat[0, x*2]:
-                print(y.text)
-                # mark the species check as good
-                databaseta.iat[0, (x*2)+1] = "1"
+    return spliturl[1]
+
+# main algorithm for the taxonomy checker
+def taxonomychecker(numbertoprocess):
+    global databaseta
+    global preprocesswindow
+
+    for x in range(0, numbertoprocess):
+
+        rownumber = taxonomyrowtrackerIntVar.get() + x
+
+        try:
+            # first search for the genus+species combination
+            genusandspecies = searchbyanything("%s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12]))
+            if genusandspecies == 1:
+                # if returns 1 then it means a match has been found
+                print("Species Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
             else:
-                # mark the tax level check as bad
-                databaseta.iat[0, (x*2)+1] = "1"
+                genusandspeciessyn = synonymchecker("%s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12]))
+                if genusandspeciessyn == 1:
+                    print("Species synonym found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No species synonym found")
+                    resetadvancedoptions()
 
-            # full comparison against taxonomy provided to go here
+            # then search for the genus
+            genusalone = searchbyanything("%s" % (databaseta.iat[rownumber, 10]))
+            if genusalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Genus Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                genusalonessyn = synonymchecker("%s" % (databaseta.iat[rownumber, 10]))
+                if genusalonessyn == 1:
+                    print("Genus Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Genus Synonym Found")
+                    resetadvancedoptions()
+
+            # then search for the family
+            familyalone = searchbyanything("%s" % (databaseta.iat[rownumber, 8]))
+            if familyalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Family Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                familyalonesyn = synonymchecker("%s" % (databaseta.iat[rownumber, 8]))
+                if familyalonesyn == 1:
+                    print("Family Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Family Synonym Found")
+                    resetadvancedoptions()
+
+            # then search for the order
+            orderalone = searchbyanything("%s" % (databaseta.iat[rownumber, 6]))
+            if orderalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Order Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                orderalonesyn = synonymchecker("%s" % (databaseta.iat[rownumber, 6]))
+                if orderalonesyn == 1:
+                    print("Order Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Order Synonym Found")
+                    resetadvancedoptions()
+
+            # then search for the class
+            classalone = searchbyanything("%s" % (databaseta.iat[rownumber, 4]))
+            if classalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Class Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                classalonesyn = synonymchecker("%s" % (databaseta.iat[rownumber, 4]))
+                if classalonesyn == 1:
+                    print("Class Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Class Synonym Found")
+                    resetadvancedoptions()
+
+            # then search for the phylum
+            phylumalone = searchbyanything("%s" % (databaseta.iat[rownumber, 2]))
+            if phylumalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Phylum Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                phylumalonesyn = synonymchecker("%s" % (databaseta.iat[rownumber, 2]))
+                if phylumalonesyn == 1:
+                    print("Phylum Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Phylum Synonym Found")
+                    resetadvancedoptions()
+
+            # then search for the kingdom
+            kingdomalone = searchbyanything("%s" % (databaseta.iat[rownumber, 0]))
+            if kingdomalone == 1:
+                # if returns 1 then it means a match has been found
+                print("Kingdom Found")
+                # check the SIS taxonomy reporting any differences you might find
+                taxonomyhierarchychecker(rownumber)
+                # raise exception to get out of this iteration of the loop
+                raise NameError("LlamaNoise")
+            # if not found then run a synonym check
+            else:
+                kingdomalonesyn = synonymchecker("%s" % (databaseta.iat[rownumber, 0]))
+                if kingdomalonesyn == 1:
+                    print("Kingdom Synonym Found")
+                    taxonomyhierarchychecker(rownumber)
+                    resetadvancedoptions()
+                    # raise exception to get out of this iteration of the loop
+                    raise NameError("LlamaNoise")
+                else:
+                    print("No Kingdom Synonym Found")
+                    resetadvancedoptions()
+        except:
+            pass
+
+    # update the screen and close the preprocess window
+    taxupdate(0)
+    preprocesswindow.destroy()
+
+# algorithm when on a taxon page to open and compare against SIS taxonomy
+def taxonomyhierarchychecker(rownumber):
+    global databaseta
+
+    time.sleep(1)
+    SISList = ["SISKingdomSV", "SISPhylumSV", "SISClassSV", "SISOrderSV", "SISFamilySV", "SISGenusSV", "SISSpeciesSV"]
+
+    # set all to 0
+    for x in range(0, 7):
+        databaseta.iat[rownumber, (x * 2) + 1] = 0
+
+    # grab and store taxonomy
+    taxid = gettaxonID()
+
+    # open up the hierarchy and test against the provided taxonomy
+    driver.find_element_by_xpath("//*[contains(text(), 'View Hierarchy')]").click()
+
+    # scrape the taxonomy from this page
+    fulltaxonomy = driver.find_elements_by_css_selector(".SIS_HyperlinkLookAlike.fontSize14")
+
+    # compare the scraped taxonomy with the provided taxonomy
+    for x, y in enumerate(fulltaxonomy):
+        # first update the SIS hierarchy to a list for use
+        if x == 6:
+            speciesonly = y.text.split()[1]
+            buttonchanger("%s" % SISList[x], speciesonly)
+            if speciesonly == databaseta.iat[rownumber, x * 2]:
+                databaseta.iat[rownumber, (x * 2) + 1] = 1
+                # mark the species check as good
+            else:
+                # mark the species check as bad
+                databaseta.iat[rownumber, (x * 2) + 1] = 0
+        elif y.text == databaseta.iat[0, x * 2]:
+            buttonchanger("%s" % SISList[x], y.text)
+            # mark the species check as good
+            databaseta.iat[rownumber, (x * 2) + 1] = 1
+        else:
+            buttonchanger("%s" % SISList[x], y.text)
+            # mark the tax level check as bad
+            databaseta.iat[rownumber, (x * 2) + 1] = 0
+    root.update()
+    # record the taxon id to the
+    databaseta.iat[rownumber, (len(fulltaxonomy) * 2) - 1] = taxid
+
+    # record that the species has been preprocessed
+    databaseta.iat[rownumber, 22] = 1
+
+    # save the output to file
     taxsave()
-
-    # kingdom level search
-    #searchalgorithm(textbox, refreshbutton, "PLANTAE")
-    # phlyum level search
-    #searchalgorithm(textbox, refreshbutton, "TRACHEOPHYTA")
-    # class level search
-    #searchalgorithm(textbox, refreshbutton, "MAGNOLIOPSIDA")
-    # order level search
-    #searchalgorithm(textbox, refreshbutton, "MALPIGHIALES")
-    # family level search
-    #searchalgorithm(textbox, refreshbutton, "EUPHORBIACEAE")
-    # genus level search
-    #searchalgorithm(textbox, refreshbutton, "Stillingia")
-    # species level search
-    #searchalgorithm(textbox, refreshbutton, "spinulosa")
-    pass
+    # clean up
+    resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
+    driver.execute_script("arguments[0].click();", resetimage)
 
 
 # GUI code
@@ -2128,8 +2488,6 @@ usernamevariable = None
 passwordvariable = None
 validatebuttontext = StringVar()
 validatebuttontext.set("Validate")
-kingdomslist = pandas.read_csv("J:\\Red List\\Red List Review Assistant\\Current Active Version\\SupportingFiles\\kingdoms.csv",header=0)
-fastreviewdirections = pandas.read_csv("J:\\Red List\\Red List Review Assistant\\Current Active Version\\SupportingFiles\\fastreviewdirections.csv")
 reviewmenuplacetracker = IntVar()
 reviewmenuplacetracker.set(0)
 assessmentvar = StringVar()
@@ -2145,6 +2503,7 @@ combobox = None
 globallevel = IntVar()
 synonymtoadd = StringVar()
 synonymchosen = StringVar()
+fastreviewdirections = pandas.DataFrame()
 
 # setup style
 style = ttk.Style()
@@ -2181,8 +2540,8 @@ taxadderassistantframe.master.minsize(width=510, height=510)
 
 # main frame
 # main frame images
-sislogo = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\sislogo.png')
-topbar = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\topbar.png')
+sislogo = PhotoImage(file='C:\\Users\\fancourtm\\PycharmProjects\\ReviewAssistant\\images\\sislogo.png')
+topbar = PhotoImage(file='C:\\Users\\fancourtm\\PycharmProjects\\ReviewAssistant\\images\\topbar.png')
 ttk.Label(mainframe, image=topbar, borderwidth=0).grid(column=0, row=1, columnspan=7)
 ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=NW)
 
@@ -2200,7 +2559,7 @@ loginbutton = ttk.Button(mainframe, text="Log In", command=lambda: login())
 loginbutton.grid(column=0, row=4, sticky=(N, S, W))
 species_name_entry = ttk.Entry(mainframe, width=20, textvariable=anyvariable, state=DISABLED)
 species_name_entry.grid(column=0, row=6, sticky=(N, S, W, E), columnspan=1)
-searchbyanythingbutton = ttk.Button(mainframe, text="Search", command=searchbyanything, state=DISABLED)
+searchbyanythingbutton = ttk.Button(mainframe, text="Search", command=lambda: searchbyanything(anyvariable.get()), state=DISABLED)
 searchbyanythingbutton.grid(column=0, row=7, sticky=(N, S, W, E))
 singlereviewbutton = ttk.Button(mainframe, text="Review This Species", command=lambda: singlereview(), state=DISABLED)
 singlereviewbutton.grid(column=1, row=7, sticky=(N, S, W, E))
@@ -2264,14 +2623,14 @@ ttk.Label(taxadderframe, text="Provided Data", borderwidth=0, background="#DFE8F
 #taxlabel1.grid(column=2, row=1, sticky=EW, columnspan=2)
 
 # arrows in between labels
-SolidDown = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\SolidDown.png')
-DownPossible = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\DownPossible.png')
-DownNo = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\DownNo.png')
-Blank = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\Blank.png')
-righttoleft = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\righttoleft.png')
-righttoleftpotential = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\righttoleftpotential.png')
-leftoright = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\leftoright.png')
-leftorightpotential = PhotoImage(file='J:\\Red List\\Red List Review Assistant\\Current Active Version\\Pictures\\leftorightpotential.png')
+SolidDown = PhotoImage(file='%s\\images\\SolidDown.png' % filedir)
+DownPossible = PhotoImage(file='%s\\images\\DownPossible.png' % filedir)
+DownNo = PhotoImage(file='%s\\images\\DownNo.png' % filedir)
+Blank = PhotoImage(file='%s\\images\\Blank.png' % filedir)
+righttoleft = PhotoImage(file='%s\\images\\righttoleft.png' % filedir)
+righttoleftpotential = PhotoImage(file='%s\\images\\righttoleftpotential.png' % filedir)
+leftoright = PhotoImage(file='%s\\images\\leftoright.png' % filedir)
+leftorightpotential = PhotoImage(file='%s\\images\\leftorightpotential.png' % filedir)
 
 # first column for SIS data
 # SIS arrows
@@ -2412,12 +2771,12 @@ speciesdetailstext = StringVar()
 speciesdetailstext.set('Details')
 
 kingdomdetails = ttk.Button(taxadderframe, textvariable=kingdomdetailstext, command=lambda: detailbox("kingdom",kingdomdetailstext, 0))
-phylumdetails = ttk.Button(taxadderframe, textvariable=phylumdetailstext, command=lambda: detailbox("phylum", phylumdetailstext, 1))
-classdetails = ttk.Button(taxadderframe, textvariable=classdetailstext, command=lambda: detailbox("class", classdetailstext, 2))
-orderdetails = ttk.Button(taxadderframe, textvariable=orderdetailstext, command=lambda: detailbox("order", orderdetailstext, 3))
-familydetails = ttk.Button(taxadderframe, textvariable=familydetailstext, command=lambda: detailbox("family", familydetailstext, 4))
-genusdetails = ttk.Button(taxadderframe, textvariable=genusdetailstext, command=lambda: detailbox("genus", genusdetailstext, 5))
-speciesdetails = ttk.Button(taxadderframe, textvariable=speciesdetailstext, command=lambda: detailbox("species", speciesdetailstext, 6))
+phylumdetails = ttk.Button(taxadderframe, textvariable=phylumdetailstext, command=lambda: detailbox("phylum", phylumdetailstext, 2))
+classdetails = ttk.Button(taxadderframe, textvariable=classdetailstext, command=lambda: detailbox("class", classdetailstext, 4))
+orderdetails = ttk.Button(taxadderframe, textvariable=orderdetailstext, command=lambda: detailbox("order", orderdetailstext, 6))
+familydetails = ttk.Button(taxadderframe, textvariable=familydetailstext, command=lambda: detailbox("family", familydetailstext, 8))
+genusdetails = ttk.Button(taxadderframe, textvariable=genusdetailstext, command=lambda: detailbox("genus", genusdetailstext, 10))
+speciesdetails = ttk.Button(taxadderframe, textvariable=speciesdetailstext, command=lambda: detailbox("species", speciesdetailstext, 12))
 
 kingdomdetails.grid(column=3, row=4)
 phylumdetails.grid(column=3, row=6)
