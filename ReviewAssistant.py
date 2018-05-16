@@ -16,6 +16,9 @@ import time
 import pandas
 import datetime
 import geopandas
+import fiona
+import folium
+import webbrowser
 import matplotlib.pyplot
 from tkinter import *
 from tkinter import ttk
@@ -24,18 +27,15 @@ from tkinter import filedialog
 from tkinter import simpledialog
 from tkinter.scrolledtext import ScrolledText
 
-# get the file directory for use
+# get the directory from which the python file is running
 filedir = os.path.dirname(__file__)
-
-print(filedir)
 
 # function declarations
 # setup the webdriver
 options = webdriver.ChromeOptions()
 options.add_argument('--lang=en-GB')
 options.add_argument('--disable-infobars')
-driver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir,
-                          chrome_options=options)
+driver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir, chrome_options=options)
 
 # get resolution
 # screen_width = GetSystemMetrics(0)
@@ -1496,12 +1496,27 @@ def gotooption(event):
 
 # test function to load up the current map
 def loadmap():
-    fp = "C:\\Users\\fancourtm\\Desktop\\Data\\ne_50m_admin_0_countries.shp"
-    data = geopandas.read_file(fp)
-    data.plot(cmap='CMRmap')
-    matplotlib.interactive(False)
-    matplotlib.pyplot.show()
-    pass
+    # first look at the html map store to see if the map has already been created
+    # if not then create and view
+    # species distribution data
+    fp = "C:\\Users\\fancourtm\\Desktop\\Data\\test.gdb"
+    # read from a geodatabase
+    data = geopandas.read_file(fp, driver='FileGDB, layer=Troides_aeacus')
+    # folium map
+    jsondata = data.to_json()
+    # map properties
+    map = folium.Map([0, 0], zoom_start=0, tiles='Stamen Terrain')
+    # set the default zoom to the curret extent of the map
+    # .fit_bounds([[miny, minx], [maxy, maxx]])
+    map.fit_bounds([[3.045382, 76.62], [34.248598, 122.779167]])
+    # add the polygon to the map
+    polygon = folium.features.GeoJson(jsondata)
+    map.add_child(polygon)
+    # export the map so that it can be opened by the program
+    map.save('C:\\Users\\fancourtm\\Desktop\\test.html')
+    # call the map engine window to view
+    #mapdriver.get("C:\\Users\\fancourtm\\Desktop\\test.html")
+    webbrowser.open_new('file://C:/Users/fancourtm/Desktop/test.html')
 
 # prototype function to allow selection of the available assessments on the taxon page
 def assessmentlistchooser():
