@@ -33,7 +33,7 @@ def setinstalldir():
 def download():
     global filedir
 
-    dbx = dropbox.Dropbox('GzlmwzkEwzYAAAAAAAAGG-gyryJlhQTdF7mQSU5w7mku6CEexS3Mp4G2nDdQCR-s')
+    dbx = dropbox.Dropbox('')
 
     downloadstatus.set("Downloading libaries")
     # download Dependencies to correct location
