@@ -13,13 +13,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 import csv
 import os
 import time
-import pandas
+
 import datetime
-import geopandas
-import fiona
-import folium
 import webbrowser
-import matplotlib.pyplot
 from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
@@ -29,6 +25,8 @@ from tkinter.scrolledtext import ScrolledText
 
 # get the directory from which the python file is running
 filedir = os.path.dirname(__file__)
+
+print(filedir)
 
 # function declarations
 # setup the webdriver
@@ -1288,9 +1286,9 @@ def skiptofunction():
 
 # shut down the assistant
 def quit():
-    driver.quit()
     global root
     root.quit()
+    driver.quit()
 
 # swap the status of the review assisant buttons from/to passed/not passed
 def swapstate(buttontext, actualbutton):
@@ -1330,7 +1328,7 @@ def createtoolwindow():
     validateassessmentbutton = ttk.Button(top, textvariable=validatebuttontext, command=lambda: validateassessment(validatebuttontext.get()))
     nextitem = ttk.Button(top, text=">", command=lambda: gotonextmenuitem(), state=NORMAL)
     previousitem = ttk.Button(top, text="<", command=lambda: gotopreviousmenutiem(), state=NORMAL)
-    loadmapbutton = ttk.Button(top, text="Open Map", command=lambda: loadmap())
+    loadmapbutton = ttk.Button(top, textvariable=mapenginetext, command=lambda: mapengineswitch())
 
     # tool window buttons placement
     checkanddownloadbutton.grid(column=0, row=0, sticky=EW)
@@ -1354,6 +1352,15 @@ def hidetoolwindow():
     top.withdraw()
 
 # review tool box functions
+# activate the map engine if off, or turn it off if it on
+def mapengineswitch():
+    if mapengineactive.get() == 0:
+        mapenginetext.set("Activate Maps")
+        mapengineactive.set(1)
+    else:
+        mapenginetext.set("Activate Maps")
+        mapengineactive.set(0)
+
 # advance to the next menu section to review
 def gotonextmenuitem():
     driver.implicitly_wait(2)
@@ -1515,8 +1522,8 @@ def loadmap():
     # export the map so that it can be opened by the program
     map.save('C:\\Users\\fancourtm\\Desktop\\test.html')
     # call the map engine window to view
-    #mapdriver.get("C:\\Users\\fancourtm\\Desktop\\test.html")
-    webbrowser.open_new('file://C:/Users/fancourtm/Desktop/test.html')
+    mapdriver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir, chrome_options=options)
+    mapdriver.get("C:/Users/fancourtm/Desktop/test.html")
 
 # prototype function to allow selection of the available assessments on the taxon page
 def assessmentlistchooser():
@@ -2497,8 +2504,7 @@ synonymsource.withdraw()
 # global variables
 filenamera = StringVar()
 filenameta = StringVar()
-databasera = pandas.DataFrame(index=range(0, 4), columns=['Genus', 'Species', 'Criteria Passed?', 'Validity Passed?', 'Map Passed?', 'Notes']).astype('str')
-databaseta = pandas.DataFrame(index=range(0, 4), columns=['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species', 'Taxonomic Reference', 'Working Set']).astype('str')
+
 usernamevariable = None
 passwordvariable = None
 validatebuttontext = StringVar()
@@ -2518,7 +2524,10 @@ combobox = None
 globallevel = IntVar()
 synonymtoadd = StringVar()
 synonymchosen = StringVar()
-fastreviewdirections = pandas.DataFrame()
+mapengineactive = IntVar()
+mapengineactive.set(0)
+mapenginetext = StringVar()
+mapenginetext.set("Activate Maps")
 
 # setup style
 style = ttk.Style()
@@ -2555,10 +2564,11 @@ taxadderassistantframe.master.minsize(width=510, height=510)
 
 # main frame
 # main frame images
-sislogo = PhotoImage(file='C:\\Users\\fancourtm\\PycharmProjects\\ReviewAssistant\\images\\sislogo.png')
-topbar = PhotoImage(file='C:\\Users\\fancourtm\\PycharmProjects\\ReviewAssistant\\images\\topbar.png')
+sislogo = PhotoImage(file="%s\\Images\\sislogo.png" % filedir)
+topbar = PhotoImage(file="%s\\Images\\topbar.png" % filedir)
+
+#ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=NW)
 ttk.Label(mainframe, image=topbar, borderwidth=0).grid(column=0, row=1, columnspan=7)
-ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=NW)
 
 # main frame labels
 ttk.Label(mainframe, text="SISA v5.0", font=(None, 10), background="#DFE8F6").grid(column=6, row=2, sticky=NE)
@@ -2933,9 +2943,19 @@ for child in taxadderframe.winfo_children():
 for child in taxadderassistantframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
 
-
 # hide the various menus to allow things to appear neatly.
 hideall()
+
+# problematic libaries loading these last as this seems to fix the pyimage not existing error
+import pandas
+import folium
+import geopandas
+import fiona
+
+# panda databases have to be loaded after pandas for the above workaround to work
+databasera = pandas.DataFrame(index=range(0, 4), columns=['Genus', 'Species', 'Criteria Passed?', 'Validity Passed?', 'Map Passed?', 'Notes']).astype('str')
+databaseta = pandas.DataFrame(index=range(0, 4), columns=['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species', 'Taxonomic Reference', 'Working Set']).astype('str')
+fastreviewdirections = pandas.DataFrame()
 
 # mainloop and raise mainframe to top for start
 mainframe.tkraise()

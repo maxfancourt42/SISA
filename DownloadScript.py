@@ -2,11 +2,12 @@ import tkinter
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import simpledialog
+
 import os
 import dropbox
 import time
 import subprocess
-
 
 # asks the user to choose the install directory and then creates the empty file structure within
 def setinstalldir():
@@ -33,7 +34,9 @@ def setinstalldir():
 def download():
     global filedir
 
-    dbx = dropbox.Dropbox('')
+    APIkey = simpledialog.askstring("API Key", "API Key Please: ", parent=mainframe)
+
+    dbx = dropbox.Dropbox('%s' % APIkey)
 
     downloadstatus.set("Downloading libaries")
     # download Dependencies to correct location
@@ -62,6 +65,9 @@ def download():
     for entry in dbx.files_list_folder("/ChromeDriver").entries:
         print(entry.name)
         dbx.files_download_to_file(path="/ChromeDriver/%s" % entry.name, download_path="%s/SISA/ChromeDriver/%s" % (filedir, entry.name))
+
+    # TO DO
+    # download the Review Assistant python script and then place a .BAT file on the
 
     downloadstatus.set("Chromedriver Downloaded")
     root.update()
@@ -119,6 +125,8 @@ ttk.Label(mainframe, text="Step 1. Select Install Location", font=(None, 12), ba
 ttk.Label(mainframe, textvariable=filelocation, font=(None, 10), background="#DFE8F6").grid(column=1, row=3)
 ttk.Label(mainframe, text="Step 2. Download Required Files", font=(None, 12), background="#DFE8F6").grid(column=1, row=5)
 ttk.Label(mainframe, textvariable=downloadstatus, font=(None, 10), background="#DFE8F6").grid(column=1, row=7)
+SolidDown = PhotoImage(file="C:\\Users\\fancourtm\\PycharmProjects\\SISA\\Images\\SolidDown.png")
+ttk.Label(mainframe, image=SolidDown).grid(column=1, row=10)
 
 # buttons
 setinstalldirbutton = ttk.Button(mainframe, text="Select", command=lambda: setinstalldir())
