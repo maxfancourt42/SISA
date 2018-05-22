@@ -1,5 +1,4 @@
 # version 5.1
-# something else new
 
 # import the libaries needed
 from selenium import webdriver
@@ -13,6 +12,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import csv
 import os
 import time
+import urllib.request
 
 import datetime
 import webbrowser
@@ -34,10 +34,6 @@ options = webdriver.ChromeOptions()
 options.add_argument('--lang=en-GB')
 options.add_argument('--disable-infobars')
 driver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir, chrome_options=options)
-
-# get resolution
-# screen_width = GetSystemMetrics(0)
-# screen_height = GetSystemMetrics(1)
 
 # workaround for sendkeys
 def sendkeyschecker(element, texttosend):
@@ -642,6 +638,11 @@ def loaddataandreadyreviewassistant():
 
         # reset the tablerow variable and click to start button to start from the beginning of the list
         tablerownumber.set(0)
+
+        # ask the user if they want to load in a geodatebase with the maps set file pointer to it if they do
+        if messagebox.askyesnocancel(title="Open Maps", message="Do you have any maps for this working set?") == True:
+            locationofmaps.set(filedialog.askdirectory())
+
         # activate table button
         simplesearchbutton.configure(state=NORMAL)
 
@@ -823,7 +824,6 @@ def loaddataandreadytaxassistant():
         # remove duplicates and sort out the arrows
         duplicateremover()
         arrowsorter()
-
 
         # go to the taxonomic page
         gototaxspecial()
@@ -1328,7 +1328,7 @@ def createtoolwindow():
     validateassessmentbutton = ttk.Button(top, textvariable=validatebuttontext, command=lambda: validateassessment(validatebuttontext.get()))
     nextitem = ttk.Button(top, text=">", command=lambda: gotonextmenuitem(), state=NORMAL)
     previousitem = ttk.Button(top, text="<", command=lambda: gotopreviousmenutiem(), state=NORMAL)
-    loadmapbutton = ttk.Button(top, textvariable=mapenginetext, command=lambda: mapengineswitch())
+    activatemapengine = ttk.Button(top, textvariable=mapenginetext, command=lambda: mapengineswitch())
 
     # tool window buttons placement
     checkanddownloadbutton.grid(column=0, row=0, sticky=EW)
@@ -1340,7 +1340,7 @@ def createtoolwindow():
     nextitem.grid(column=2, row=1, sticky=EW)
 
     gotoadmin.grid(column=0, row=2, sticky=EW)
-    loadmapbutton.grid(column=2, row=2, sticky=EW)
+    activatemapengine.grid(column=2, row=2, sticky=EW)
 
     top.columnconfigure((0, 1, 2), weight=1)
     top.rowconfigure((0, 1, 2), weight=1)
@@ -1351,15 +1351,36 @@ def hidetoolwindow():
     reviewtoolsbutton.grid(column=2, row=12)
     top.withdraw()
 
-# review tool box functions
 # activate the map engine if off, or turn it off if it on
 def mapengineswitch():
+    global mapdriver
+    global databasera
+    # first check if they have provided map data if not offer them the chance to open it from here
+
+    rownumber = (tablerownumber.get())
+
+    # Get the current species genus and name from the table
+    output = databasera.iat[rownumber, 1]
+    output2 = databasera.iat[rownumber, 2]
+
+
     if mapengineactive.get() == 0:
-        mapenginetext.set("Activate Maps")
+        # visual stuff to show loading
+        mapenginetext.set("Loading...")
+        root.update()
+        # set the tracking variable to show that the mapengine is running
         mapengineactive.set(1)
+        # check to see if current species map has been created //TO DO// else create it
+        createmap("%s_%s" % (output, output2))
+        # create the map driver itself
+        webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+        # change the button text
+        mapenginetext.set("Stop Maps")
+
     else:
-        mapenginetext.set("Activate Maps")
+        mapenginetext.set("Start Maps")
         mapengineactive.set(0)
+        mapdriver.quit()
 
 # advance to the next menu section to review
 def gotonextmenuitem():
@@ -1502,28 +1523,61 @@ def gotooption(event):
     dspchoice.withdraw()
 
 # test function to load up the current map
-def loadmap():
-    # first look at the html map store to see if the map has already been created
-    # if not then create and view
-    # species distribution data
-    fp = "C:\\Users\\fancourtm\\Desktop\\Data\\test.gdb"
+def createmap(speciesname):
+    global filedir
+
+    # get the location of the maps from the global variable
+    fp = locationofmaps.get()
     # read from a geodatabase
-    data = geopandas.read_file(fp, driver='FileGDB, layer=Troides_aeacus')
+    data = geopandas.read_file(fp, driver='FileGDB', layer=speciesname)
     # folium map
     jsondata = data.to_json()
     # map properties
-    map = folium.Map([0, 0], zoom_start=0, tiles='Stamen Terrain')
-    # set the default zoom to the curret extent of the map
-    # .fit_bounds([[miny, minx], [maxy, maxx]])
-    map.fit_bounds([[3.045382, 76.62], [34.248598, 122.779167]])
+    map = folium.Map([0, 0], tiles='Stamen Terrain')
+    # set the default zoom to the current extent of the map
+    bounds = data.total_bounds
+    map.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
     # add the polygon to the map
     polygon = folium.features.GeoJson(jsondata)
     map.add_child(polygon)
+    # convert the attribute table data for this species into a html table for this species
+    # first drop the geometry column, for aesthetic purposes
+    table = data.drop("geometry", axis=1)
+    # convert table to html format
+    table.to_html("%s\\TempFiles\\temptabledata.txt" % filedir, border=0)
+    # open up the table outline
+    tableoutline = open("%s\\HTMLFiles\\TableOutline.txt" % filedir)
+    # open up the html table
+    tocopyin = open("%s\\TempFiles\\temptabledata.txt" % filedir)
+    # define the stylesheet location for writing
+    location = "%s/HTMLFiles/stylesheet.css" % filedir
+    # define the location to save the table html
+    finalfile = open("%s\\TempFiles\\%s_temp.html" % (filedir, speciesname), "w+")
+
+    # loop through the html and insert the created html text and the local location of the stylesheet
+    for line in tableoutline:
+        finalfile.write(line)
+        if 'href=' in line:
+            finalfile.write("\"%s\">" % location)
+        if '<div class="fixed">' in line:
+            for line2 in tocopyin:
+                finalfile.write("%s" % line2)
+
+    # once looped close open files, and tidy up the temp files
+    tableoutline.close()
+    tocopyin.close()
+    finalfile.close()
+    os.remove("%s\\TempFiles\\temptabledata.txt" % filedir)
+
+    with open("%s/TempFiles/%s_temp.html" % (filedir, speciesname)) as myfile:
+        data = myfile.read()
+
+    # add this to the new map
+    map.get_root().html.add_child(folium.Element(data))
     # export the map so that it can be opened by the program
-    map.save('C:\\Users\\fancourtm\\Desktop\\test.html')
-    # call the map engine window to view
-    mapdriver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir, chrome_options=options)
-    mapdriver.get("C:/Users/fancourtm/Desktop/test.html")
+    map.save("%s\\SpatialDataStore\\%s.html" % (filedir, speciesname))
+    # delete the temp file
+    os.remove("%s/TempFiles/%s_temp.html" % (filedir, speciesname))
 
 # prototype function to allow selection of the available assessments on the taxon page
 def assessmentlistchooser():
@@ -2504,6 +2558,7 @@ synonymsource.withdraw()
 # global variables
 filenamera = StringVar()
 filenameta = StringVar()
+locationofmaps = StringVar()
 
 usernamevariable = None
 passwordvariable = None
@@ -2567,7 +2622,7 @@ taxadderassistantframe.master.minsize(width=510, height=510)
 sislogo = PhotoImage(file="%s\\Images\\sislogo.png" % filedir)
 topbar = PhotoImage(file="%s\\Images\\topbar.png" % filedir)
 
-#ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=NW)
+ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=NW)
 ttk.Label(mainframe, image=topbar, borderwidth=0).grid(column=0, row=1, columnspan=7)
 
 # main frame labels
