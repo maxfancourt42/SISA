@@ -1,0 +1,55 @@
+<head>
+	<title>Map For something</title>
+	<link rel="stylesheet" type="text/css" href=
+
+</head>
+<body>
+	<div class="fixed">
+	</div>
+	<div class="toptable">
+	    <table style="border-collapse: separate">
+	        <tr>
+	            <th>Presence</th>
+	        </tr>
+            <tr>
+                <td style="background-color:#ff0000">Extant (1)</th>
+            </tr>
+            <tr>
+                <td style="background-color:#ff9d00">Depreciated(2)</td>
+            </tr>
+            <tr>
+                <td style="background-color:#fffa00">Possibly Extant (3)</td>
+            </tr>
+            <tr>
+                <td style="background-color:#37ff00">Possibly Extinct (4)</td>
+            </tr>
+            <tr>
+                <td style="background-color:#003fff; color: white">Extinct(post 1500) (5)</td>
+            </tr>
+            <tr>
+                <td style="background-color:#e900ff; color: white">Presence Uncertain (6)</td>
+            </tr>
+            <tr>
+                <th>Origin</th>
+            </tr>
+            <tr>
+                <td style="border-style: solid; border-color: #ff0000; border-width: 5px">Native (1)</th>
+            </tr>
+            <tr>
+                <td style="border-style: solid; border-color: #ff9d00; border-width: 5px">Re-introduced (2)</td>
+            </tr>
+            <tr>
+                <td style="border-style: solid; border-color: #fffa00; border-width: 5px">Introduced (3)</td>
+            </tr>
+            <tr>
+                <td style="border-style: solid; border-color: #37ff00; border-width: 5px">Vagrant (4)</td>
+            </tr>
+            <tr>
+               <td style="border-style: solid; border-color: #003fff; border-width: 5px">Origin Uncertain (5)</td>
+            </tr>
+            <tr>
+                <td style="border-style: solid; border-color: #e900ff; border-width: 5px">Assisted Colonisation (6)</td>
+            </tr>
+        </table>
+	</div>
+</body>

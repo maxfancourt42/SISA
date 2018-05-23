@@ -942,6 +942,8 @@ def reviewload():
 # advance/go back a row on the table
 def update(advorgoback):
     global databasera
+    global filedir
+
     # ensure that the driver is on the correct page
     driver.switch_to.window(driver.window_handles[0])
     # save the current data
@@ -1013,6 +1015,19 @@ def update(advorgoback):
 
     # set the menu tracker to 0
     reviewmenuplacetracker.set(0)
+
+    # if the map viewer has been activated then create map else skip
+    # Get the current species genus and name from the table
+    if mapengineactive.get() == 1:
+        # check to see if current species map has been created, if it has then open it and display
+        # check to see if current species map has been created, if it has then open it and display
+        if os.path.isfile("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2)):
+            webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+        # if not then create the map and then open it
+        else:
+            createmap("%s_%s" % (output, output2))
+            # create the map driver itself
+            webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
 
 # skip to a specific row of the tax table
 def taxskipto():
@@ -1363,24 +1378,27 @@ def mapengineswitch():
     output = databasera.iat[rownumber, 1]
     output2 = databasera.iat[rownumber, 2]
 
-
     if mapengineactive.get() == 0:
         # visual stuff to show loading
         mapenginetext.set("Loading...")
         root.update()
         # set the tracking variable to show that the mapengine is running
         mapengineactive.set(1)
-        # check to see if current species map has been created //TO DO// else create it
-        createmap("%s_%s" % (output, output2))
-        # create the map driver itself
-        webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+        # check to see if current species map has been created, if it has then open it and display
+        if os.path.isfile("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2)):
+            webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+        # if not then create the map and then open it
+        else:
+            createmap("%s_%s" % (output, output2))
+            # create the map driver itself
+            webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+
         # change the button text
         mapenginetext.set("Stop Maps")
 
     else:
         mapenginetext.set("Start Maps")
         mapengineactive.set(0)
-        mapdriver.quit()
 
 # advance to the next menu section to review
 def gotonextmenuitem():
@@ -1538,7 +1556,7 @@ def createmap(speciesname):
     bounds = data.total_bounds
     map.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
     # add the polygon to the map
-    polygon = folium.features.GeoJson(jsondata)
+    polygon = folium.features.GeoJson(jsondata, style_function=lambda feature: {'fillColor': '#ff0000' if feature['properties']['PRESENCE'] == 1 else '#ff9d00' if feature['properties']['PRESENCE'] == 2 else '#fffa00' if feature['properties']['PRESENCE'] == 3 else '#37ff00' if feature['properties']['PRESENCE'] == 4 else '#003fff' if feature['properties']['PRESENCE'] == 5 else '#e900ff', 'color': '#ff0000' if feature['properties']['ORIGIN'] == 1 else '#ff9d00' if feature['properties']['ORIGIN'] == 2 else '#fffa00' if feature['properties']['ORIGIN'] == 3 else '#37ff00' if feature['properties']['ORIGIN'] == 4 else '#003fff' if feature['properties']['ORIGIN'] == 5 else '#e900ff', 'fillOpacity': '0.6'})
     map.add_child(polygon)
     # convert the attribute table data for this species into a html table for this species
     # first drop the geometry column, for aesthetic purposes

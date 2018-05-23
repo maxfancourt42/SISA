@@ -27,6 +27,10 @@ def setinstalldir():
         os.makedirs("%s/SISA/ChromeDriver" % filedir)
         # create the internal spatial data store
         os.makedirs("%s/SISA/SpatialDataStore" % filedir)
+        # create the HTMLFiles folder
+        os.makedirs("%s/SISA/HTMLFiles" % filedir)
+        # create the SpatialDataStore
+        os.makedirs("%s/SISA/SpatialDataStore" % filedir)
 
     else:
         filedir = "C:/Users/fancourtm/Desktop/testdownload"
@@ -66,13 +70,24 @@ def download():
         print(entry.name)
         dbx.files_download_to_file(path="/ChromeDriver/%s" % entry.name, download_path="%s/SISA/ChromeDriver/%s" % (filedir, entry.name))
 
-    # TO DO
-    # download the Review Assistant python script and then place a .BAT file on the
-
     downloadstatus.set("Chromedriver Downloaded")
     root.update()
     time.sleep(0.5)
-    downloadstatus.set("Downloads Complete")
+    downloadstatus.set("Downloading HTML Files")
+
+    # download the HTMLFIles
+    for entry in dbx.files_list_folder("/HTMLFiles").entries:
+        print(entry.name)
+        dbx.files_download_to_file(path="/HTMLFiles/%s" % entry.name, download_path="%s/SISA/HTMLFiles/%s" % (filedir, entry.name))
+
+    downloadstatus.set("HTML Files Downloaded")
+    root.update()
+    time.sleep(0.5)
+    downloadstatus.set("Downloading Complete")
+
+    # TO DO
+    # download the Review Assistant python script and then place a .BAT file on the
+
 
 def install():
     global filedir
