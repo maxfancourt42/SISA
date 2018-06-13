@@ -33,7 +33,8 @@ print(filedir)
 options = webdriver.ChromeOptions()
 options.add_argument('--lang=en-GB')
 options.add_argument('--disable-infobars')
-driver = webdriver.Chrome(executable_path='%s/ChromeDriver/chromedriver.exe' % filedir, chrome_options=options)
+
+driver = webdriver.Chrome(executable_path='%s\ChromeDriver\chromedriver.exe' % filedir, chrome_options=options)
 
 # workaround for sendkeys
 def sendkeyschecker(element, texttosend):
@@ -537,10 +538,9 @@ def duplicateremover():
     if SISSpeciesSV.get() == "SISSpecies":
         buttonchanger("SISSpeciesSV", "")
 
-# function to ask user if you want to add species to working set
+# function to add species to working set
 def addtoworkingset():
     global databaseta
-
     # reset to the homepage
     try:
         resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
@@ -548,15 +548,14 @@ def addtoworkingset():
     except:
         messagebox.showerror("Generic Error Llama", "Unable to reset to homepage, try again")
         return 1
-
     try:
         # get row number
-        currentrow = taxonomyrowtrackerIntVar.get()
+        rownumber = taxonomyrowtrackerIntVar.get()
 
         # get genus, species and workingset
-        genus = databaseta.iat[currentrow, 5]
-        species = databaseta.iat[currentrow, 6]
-        workingset = databaseta.iat[currentrow, 10]
+        genus = databaseta.iat[rownumber, 10]
+        species = databaseta.iat[rownumber, 12]
+        workingset = databaseta.iat[rownumber, 18]
 
         # set implicit wait
         driver.implicitly_wait(5)
@@ -610,12 +609,13 @@ def addtoworkingset():
     # clear the working set box for the next use
     listoffilterboxes[0].clear()
 
-    # hide the add to working set button and replaced with added text
+    # hide the "add to working set" button and replace with added text
     addtoworkingsetbutton.grid_forget()
-
-    #
     userFamilySV.set("Added to Working Set")
     taxlabel14.grid(columnspan=3)
+
+    # changed the notes column to reflect this change
+    databaseta.iat[rownumber, 20] = "Was already in SIS, added to working set"
 
 # load user selected review data and then ready the review assistant
 def loaddataandreadyreviewassistant():
@@ -744,7 +744,7 @@ def loaddataandreadyreviewassistant():
         createtoolwindow()
 
         # load the fastdirections file
-        fastreviewdirections = pandas.read_csv("J:\\Red List\\Red List Review Assistant\\Current Active Version\\SupportingFiles\\fastreviewdirections.csv")
+        fastreviewdirections = pandas.read_csv("%s\\ReviewDirections\\fastreviewdirections.csv" % filedir)
 
     except:
         messagebox.showerror("There's a llama afoot", "please select a file to load")
@@ -754,28 +754,30 @@ def loaddataandreadytaxassistant():
     # prompt the user to open the csv they want to read from
     global databaseta
 
-    try:
-        # create the database for review assistant
-        filenameta.set(filedialog.askopenfilename())
-        databaseta = pandas.read_excel((filenameta.get()), converters={'Kingdom': str, 'KCheck': int, 'Phylum': str,
-                                                                       'PCheck': int, 'Class': str, 'CCheck': int,
-                                                                       'Order': str, 'OCheck': int, 'Family': str,
-                                                                       'FCheck': int, 'Genus': str, 'GCheck': int,
-                                                                       'Species': str, 'SCheck': int, 'Infrarank': str,
-                                                                       'ICheck': int, 'Taxonomic Authority': str,
-                                                                       'Taxonomic Reference': str, 'Working Set': str,
-                                                                       'Species Added?': str, 'Notes': str,
-                                                                       'ID': str, 'Preprocessed?': int,})
-        # undertake data scrubbing
-        databaseta[['Preprocessed?']] = databaseta[['Preprocessed?']].fillna(value=0)
-        databaseta = databaseta.fillna("")
+    #try:
+    # create the database for review assistant
+    filenameta.set(filedialog.askopenfilename())
+    databaseta = pandas.read_excel((filenameta.get()), converters={'Kingdom': str, 'KCheck': str, 'Phylum': str,
+                                                                   'PCheck': str, 'Class': str, 'CCheck': str,
+                                                                   'Order': str, 'OCheck': str, 'Family': str,
+                                                                   'FCheck': str, 'Genus': str, 'GCheck': str,
+                                                                   'Species': str, 'SCheck': str, 'Infrarank': str,
+                                                                   'ICheck': str, 'Taxonomic Authority': str,
+                                                                   'Taxonomic Reference': str, 'Working Set': str,
+                                                                   'Species Added?': str, 'Notes': str,
+                                                                   'ID': int, 'Preprocessed?': int})
+    # undertake data scrubbing
+    databaseta[['Preprocessed?']] = databaseta[['Preprocessed?']].fillna(value=0)
+    databaseta = databaseta.fillna("")
 
-        # set the rowtracker to 0
-        taxonomyrowtrackerIntVar.set(0)
+    # set the rowtracker to 0
+    taxonomyrowtrackerIntVar.set(0)
 
-        # reset the screen
-        taxonomiccheckerrest()
+    # reset the screen
+    taxonomiccheckerrest()
 
+    # if the notes field reads already in SIS then show add to working set button
+    if databaseta.iat[0, 20] == "Already in SIS":
         # check to see if the next row has blank check values (look in kingdom box for a value)
         if databaseta.iat[taxonomyrowtrackerIntVar.get(), 22] == 0:
             preprocess()
@@ -784,31 +786,52 @@ def loaddataandreadytaxassistant():
         # load the user data for the first species
         userKingdomSV.set("%s" % databaseta.iat[0, 0])
         userPhylumSV.set("%s" % databaseta.iat[0, 2])
-        userClassSV.set("%s" % databaseta.iat[0, 4])
+        userClassSV.set("%s" % databaseta.iat[0, 20])
+        taxlabel12.grid(columnspan=3)
+        taxlabel12.config(wraplength=250)
+        addtoworkingsetbutton.grid(column=2, row=12, columnspan=3)
         userOrderSV.set("%s" % databaseta.iat[0, 6])
         userFamilySV.set("%s" % databaseta.iat[0, 8])
         userGenusSV.set("%s" % databaseta.iat[0, 10])
         userSpeciesSV.set("%s" % databaseta.iat[0, 12])
-        #userInfrarankSV.set("%s" % databaseta.iat[0, 14])
-        CombinationStringVar.set("%s %s %s" % (databaseta.iat[0, 10], databaseta.iat[0, 12], databaseta.iat[0, 14]))
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
 
-        # set the SIS data to the same if it has a non 0 number in the check column (indicating a match in SIS has been found)
-        if (databaseta.iat[0, 1] != 0):
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[0, 1] == "M":
             SISKingdomSV.set("%s" % databaseta.iat[0, 0])
-        if (databaseta.iat[0, 3] != 0):
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[0, 1])
+        if databaseta.iat[0, 3] == "M":
             SISPhylumSV.set("%s" % databaseta.iat[0, 2])
-        if (databaseta.iat[0, 5] != 0):
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[0, 3])
+        if databaseta.iat[0, 5] == "M":
             SISClassSV.set("%s" % databaseta.iat[0, 4])
-        if (databaseta.iat[0, 7] != 0):
+        else:
+            SISClassSV.set("%s" % databaseta.iat[0, 5])
+        if databaseta.iat[0, 7] == "M":
             SISOrderSV.set("%s" % databaseta.iat[0, 6])
-        if (databaseta.iat[0, 9] != 0):
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[0, 7])
+        if databaseta.iat[0, 9] == "M":
             SISFamilySV.set("%s" % databaseta.iat[0, 8])
-        if (databaseta.iat[0, 11] != 0):
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[0, 9])
+        if databaseta.iat[0, 11] == "M":
             SISGenusSV.set("%s" % databaseta.iat[0, 10])
-        if (databaseta.iat[0, 13] != 0):
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[0, 11])
+        if databaseta.iat[0, 13] == "M":
             SISSpeciesSV.set("%s" % databaseta.iat[0, 12])
-        # if (databaseta.iat[rownumber, 15] != 0):
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
         #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[0, 10], databaseta.iat[0, 12], databaseta.iat[0, 14]))
+        copyname()
+        duplicateremover()
+        arrowsorter()
 
         # then set the value of the progress tracker to the new value
         taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
@@ -822,16 +845,151 @@ def loaddataandreadytaxassistant():
         elif taxonomyrowtrackerIntVar.get() + 1 >= len(databaseta):
             nextspeciestax.config(state='disabled')
 
-        # remove duplicates and sort out the arrows
+        # go to the taxonomic page
+        gototaxspecial()
+        root.update()
+
+    # if not NO then check to see if notes column is blank, if not then show that
+    elif databaseta.iat[0, 20] != "":
+        # check to see if the row has blank check values
+        if databaseta.iat[taxonomyrowtrackerIntVar.get(), 22] == 0:
+            preprocess()
+            taxsave()
+
+        # load the user data for the first species
+        userKingdomSV.set("%s" % databaseta.iat[0, 0])
+        userPhylumSV.set("%s" % databaseta.iat[0, 2])
+        userClassSV.set("%s" % databaseta.iat[0, 20])
+        taxlabel12.grid(columnspan=3)
+        taxlabel12.config(wraplength=250)
+        userOrderSV.set("%s" % databaseta.iat[0, 6])
+        userFamilySV.set("%s" % databaseta.iat[0, 8])
+        userGenusSV.set("%s" % databaseta.iat[0, 10])
+        userSpeciesSV.set("%s" % databaseta.iat[0, 12])
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
+
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[0, 1] == "M":
+            SISKingdomSV.set("%s" % databaseta.iat[0, 0])
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[0, 1])
+        if databaseta.iat[0, 3] == "M":
+            SISPhylumSV.set("%s" % databaseta.iat[0, 2])
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[0, 3])
+        if databaseta.iat[0, 5] == "M":
+            SISClassSV.set("%s" % databaseta.iat[0, 4])
+        else:
+            SISClassSV.set("%s" % databaseta.iat[0, 5])
+        if databaseta.iat[0, 7] == "M":
+            SISOrderSV.set("%s" % databaseta.iat[0, 6])
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[0, 7])
+        if databaseta.iat[0, 9] == "M":
+            SISFamilySV.set("%s" % databaseta.iat[0, 8])
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[0, 9])
+        if databaseta.iat[0, 11] == "M":
+            SISGenusSV.set("%s" % databaseta.iat[0, 10])
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[0, 11])
+        if databaseta.iat[0, 13] == "M":
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 12])
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[0, 10], databaseta.iat[0, 12], databaseta.iat[0, 14]))
+        copyname()
         duplicateremover()
         arrowsorter()
+
+        # then set the value of the progress tracker to the new value
+        taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
+
+        # set the buttons up correctly
+        # check to ensure that the database is still in the scope of the underlying database and change buttons accordingly
+        previousspeciestax.config(state='normal')
+        nextspeciestax.config(state='normal')
+        if taxonomyrowtrackerIntVar.get() - 1 < 0:
+            previousspeciestax.config(state='disabled')
+        elif taxonomyrowtrackerIntVar.get() + 1 >= len(databaseta):
+            nextspeciestax.config(state='disabled')
 
         # go to the taxonomic page
         gototaxspecial()
         root.update()
 
-    except:
-        pass
+    # else set up as normal
+    else:
+        # load the user data for the first species
+        userKingdomSV.set("%s" % databaseta.iat[0, 0])
+        userPhylumSV.set("%s" % databaseta.iat[0, 2])
+        userClassSV.set("%s" % databaseta.iat[0, 4])
+        userOrderSV.set("%s" % databaseta.iat[0, 6])
+        userFamilySV.set("%s" % databaseta.iat[0, 8])
+        userGenusSV.set("%s" % databaseta.iat[0, 10])
+        userSpeciesSV.set("%s" % databaseta.iat[0, 12])
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
+
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[0, 1] == "M":
+            SISKingdomSV.set("%s" % databaseta.iat[0, 0])
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[0, 1])
+        if databaseta.iat[0, 3] == "M":
+            SISPhylumSV.set("%s" % databaseta.iat[0, 2])
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[0, 3])
+        if databaseta.iat[0, 5] == "M":
+            SISClassSV.set("%s" % databaseta.iat[0, 4])
+        else:
+            SISClassSV.set("%s" % databaseta.iat[0, 5])
+        if databaseta.iat[0, 7] == "M":
+            SISOrderSV.set("%s" % databaseta.iat[0, 6])
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[0, 7])
+        if databaseta.iat[0, 9] == "M":
+            SISFamilySV.set("%s" % databaseta.iat[0, 8])
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[0, 9])
+        if databaseta.iat[0, 11] == "M":
+            SISGenusSV.set("%s" % databaseta.iat[0, 10])
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[0, 11])
+        if databaseta.iat[0, 13] == "M":
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 12])
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[0, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[0, 10], databaseta.iat[0, 12], databaseta.iat[0, 14]))
+        copyname()
+        duplicateremover()
+        arrowsorter()
+
+
+
+        # then set the value of the progress tracker to the new value
+        taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
+
+        # set the buttons up correctly
+        # check to ensure that the database is still in the scope of the underlying database and change buttons accordingly
+        previousspeciestax.config(state='normal')
+        nextspeciestax.config(state='normal')
+        if taxonomyrowtrackerIntVar.get() - 1 < 0:
+            previousspeciestax.config(state='disabled')
+        elif taxonomyrowtrackerIntVar.get() + 1 >= len(databaseta):
+            nextspeciestax.config(state='disabled')
+
+        # go to the taxonomic page
+        gototaxspecial()
+        root.update()
+
+    #except:
+       # pass
 
 # function to unhide the review assistant allowing the user to continue where they left off
 def unhidereviewassistant():
@@ -1008,19 +1166,11 @@ def update(advorgoback):
     species_ID.set(SpeciesID)
     tablesearch()
 
-    # load the species data if it has any else set to defaults
-    reviewload()
-
-    # update the progress number
-    databaselength.set(str(tablerownumber.get() + 1) + ' of ' + str(len(databasera)))
-
-    # set the menu tracker to 0
-    reviewmenuplacetracker.set(0)
-
     # if the map viewer has been activated then create map else skip
     # Get the current species genus and name from the table
     if mapengineactive.get() == 1:
-        # check to see if current species map has been created, if it has then open it and display
+        # first destroy the current windows else they stack up
+        maptestslevel.destroy()
         # check to see if current species map has been created, if it has then open it and display
         if os.path.isfile("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2)):
             webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
@@ -1029,10 +1179,19 @@ def update(advorgoback):
         else:
             if (createmap("%s_%s" % (output, output2))) == 0:
                 messagebox.showerror(title="Mysterious Rubber Duck", message="No map for this species could be found")
-                return 0
-        # create the map driver itself
-        webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
-        maptests("%s_%s" % (output, output2), "NoValue")
+            else:
+                # create the map driver itself
+                webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
+                maptests("%s_%s" % (output, output2), "NoValue")
+
+    # load the species data if it has any else set to defaults
+    reviewload()
+
+    # update the progress number
+    databaselength.set(str(tablerownumber.get() + 1) + ' of ' + str(len(databasera)))
+
+    # set the menu tracker to 0
+    reviewmenuplacetracker.set(0)
 
 # skip to a specific row of the tax table
 def taxskipto():
@@ -1063,28 +1222,61 @@ def taxskipto():
     # then set the value of the progress tracker to the new value
     taxonomicprogresstracker.set("%s of %s" % (taxonomyrowtrackerIntVar.get() + 1, len(databaseta)))
 
-    # load the user data for the first species
-    userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
-    userPhylumSV.set("%s" % databaseta.iat[rownumber, 1])
-    userClassSV.set("%s" % databaseta.iat[rownumber, 2])
-    userOrderSV.set("%s" % databaseta.iat[rownumber, 3])
-    userFamilySV.set("%s" % databaseta.iat[rownumber, 4])
-    userGenusSV.set("%s" % databaseta.iat[rownumber, 5])
-    userSpeciesSV.set("%s" % databaseta.iat[rownumber, 6])
-
-    # userInfrarankSV.set("%s" % databaseta.iat[0, 7])
-    CombinationStringVar.set(
-        "%s %s %s" % (databaseta.iat[rownumber, 5], databaseta.iat[rownumber, 6], databaseta.iat[rownumber, 7]))
-
     # reset the screen
     taxonomiccheckerrest()
     copiedtexVar.set("Copy")
 
+    # load the user data for the first species
+    userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+    userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+    userClassSV.set("%s" % databaseta.iat[rownumber, 4])
+    userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+    userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+    userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+    userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+    # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
+
+
+    # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+    if databaseta.iat[rownumber, 1] == "M":
+        SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+    else:
+        SISKingdomSV.set("%s" % databaseta.iat[rownumber, 1])
+    if databaseta.iat[rownumber, 3] == "M":
+        SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+    else:
+        SISPhylumSV.set("%s" % databaseta.iat[rownumber, 3])
+    if databaseta.iat[rownumber, 5] == "M":
+        SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
+    else:
+        SISClassSV.set("%s" % databaseta.iat[rownumber, 5])
+    if databaseta.iat[rownumber, 7] == "M":
+        SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+    else:
+        SISOrderSV.set("%s" % databaseta.iat[rownumber, 7])
+    if databaseta.iat[rownumber, 9] == "M":
+        SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+    else:
+        SISFamilySV.set("%s" % databaseta.iat[rownumber, 9])
+    if databaseta.iat[rownumber, 11] == "M":
+        SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+    else:
+        SISGenusSV.set("%s" % databaseta.iat[rownumber, 11])
+    if databaseta.iat[rownumber, 13] == "M":
+        SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+    else:
+        SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 13])
+    #if databaseta.iat[rownumber, 15] == 0:
+    #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+    CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+
+    copyname()
+    duplicateremover()
+    arrowsorter()
+
     # clear the skip to box
     skiptoentrySV.set(1)
-
-    # check taxonomy of the new record
-    #taxonomychecker()
 
 # quit preprocess and return to tax menu
 def preprocessreturn():
@@ -1111,7 +1303,7 @@ def preprocess():
     preprocesswindow.resizable(0, 0)
 
     # create the various labels required
-    # sum the kingdom column to get number checked
+    # sum the preprocessed column to get number checked
     databaseta['Preprocessed?'].astype(int)
     total = databaseta['Preprocessed?'].sum()
     # check if "" in which case set to 0
@@ -1154,8 +1346,8 @@ def preprocess():
     elif 100 > numberleft:
         pre100.config(state=DISABLED)
 
-    preprocesswindow.columnconfigure((0, 1, 2), weight=1)
-    preprocesswindow.rowconfigure((0, 1, 2, 3, 4), weight=1)
+    preprocesswindow.columnconfigure((0, 1), weight=1)
+    preprocesswindow.rowconfigure((0, 1, 2), weight=1)
 
 # advance/go back a row of the tax table
 def taxupdate(advorgoback):
@@ -1197,38 +1389,156 @@ def taxupdate(advorgoback):
         preprocess()
         taxsave()
 
-    # load the user data for the first species
-    userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
-    userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
-    userClassSV.set("%s" % databaseta.iat[rownumber, 4])
-    userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
-    userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
-    userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
-    userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
-    # userInfrarankSV.set("%s" % databaseta.iat[0, 7])
+    # if Already in SIS in notes column then show add to working set button and text
+    if databaseta.iat[rownumber, 20] == "Already in SIS":
+        # load the user data for the first species
+        userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        userClassSV.set("%s" % databaseta.iat[rownumber, 20])
+        taxlabel12.grid(columnspan=3)
+        taxlabel12.config(wraplength=250)
+        addtoworkingsetbutton.grid(column=2, row=12, columnspan=3)
+        userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
 
-    # set the SIS data to the same if it has a non 0 number in the check column (indicating a match in SIS has been found)
-    if (databaseta.iat[rownumber, 1] != 0):
-        SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
-    if (databaseta.iat[rownumber, 3] != 0):
-        SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
-    if (databaseta.iat[rownumber, 5] != 0):
-        SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
-    if (databaseta.iat[rownumber, 7] != 0):
-        SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
-    if (databaseta.iat[rownumber, 9] != 0):
-        SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
-    if (databaseta.iat[rownumber, 11] != 0):
-        SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
-    if (databaseta.iat[rownumber, 13] != 0):
-        SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
-    #if (databaseta.iat[rownumber, 15] != 0):
-    #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[rownumber, 1] == "M":
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 1])
+        if databaseta.iat[rownumber, 3] == "M":
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 3])
+        if databaseta.iat[rownumber, 5] == "M":
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
+        else:
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 5])
+        if databaseta.iat[rownumber, 7] == "M":
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 7])
+        if databaseta.iat[rownumber, 9] == "M":
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 9])
+        if databaseta.iat[rownumber, 11] == "M":
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 11])
+        if databaseta.iat[rownumber, 13] == "M":
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
 
-    CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+        copyname()
+        duplicateremover()
+        arrowsorter()
+    # if not NO then check to see if notes column is blank, if not then show that
+    elif databaseta.iat[rownumber, 20] != "":
+        # load the user data for the first species
+        userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        userClassSV.set("%s" % databaseta.iat[rownumber, 20])
+        taxlabel12.grid(columnspan=3)
+        taxlabel12.config(wraplength=250)
+        userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
 
-    duplicateremover()
-    arrowsorter()
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[rownumber, 1] == "M":
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 1])
+        if databaseta.iat[rownumber, 3] == "M":
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 3])
+        if databaseta.iat[rownumber, 5] == "M":
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
+        else:
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 5])
+        if databaseta.iat[rownumber, 7] == "M":
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 7])
+        if databaseta.iat[rownumber, 9] == "M":
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 9])
+        if databaseta.iat[rownumber, 11] == "M":
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 11])
+        if databaseta.iat[rownumber, 13] == "M":
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+        copyname()
+        duplicateremover()
+        arrowsorter()
+
+    # else set up as normal
+    else:
+        # load the user data for the first species
+        userKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        userPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        userClassSV.set("%s" % databaseta.iat[rownumber, 4])
+        userOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        userFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        userGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        userSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        # userInfrarankSV.set("%s" % databaseta.iat[0, 14])
+
+        # if check value is 1, then put in the same value as database (as this indicates match), else put what SIS has
+        if databaseta.iat[rownumber, 1] == "M":
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 0])
+        else:
+            SISKingdomSV.set("%s" % databaseta.iat[rownumber, 1])
+        if databaseta.iat[rownumber, 3] == "M":
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 2])
+        else:
+            SISPhylumSV.set("%s" % databaseta.iat[rownumber, 3])
+        if databaseta.iat[rownumber, 5] == "M":
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 4])
+        else:
+            SISClassSV.set("%s" % databaseta.iat[rownumber, 5])
+        if databaseta.iat[rownumber, 7] == "M":
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 6])
+        else:
+            SISOrderSV.set("%s" % databaseta.iat[rownumber, 7])
+        if databaseta.iat[rownumber, 9] == "M":
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 8])
+        else:
+            SISFamilySV.set("%s" % databaseta.iat[rownumber, 9])
+        if databaseta.iat[rownumber, 11] == "M":
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 10])
+        else:
+            SISGenusSV.set("%s" % databaseta.iat[rownumber, 11])
+        if databaseta.iat[rownumber, 13] == "M":
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 12])
+        else:
+            SISSpeciesSV.set("%s" % databaseta.iat[rownumber, 13])
+        #if databaseta.iat[rownumber, 15] == 0:
+        #    SISInfrarankSV.set("%s" % databaseta.iat[rownumber, 14])
+
+        CombinationStringVar.set("%s %s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12], databaseta.iat[rownumber, 14]))
+        copyname()
+        duplicateremover()
+        arrowsorter()
 
 # skip to the required assessment
 def skiptofunction():
@@ -1384,7 +1694,7 @@ def checkpolygonfields(shapefiletotest, freshwater):
         requiredpolygonfields = ['ID_NO', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'geometry']
     # create a list that contains all the required polygon attributes
     # create a list that contains all the optional polygon attributes
-    optionalpolygonfields = ['FID', 'OBJECTID', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', ]
+    optionalpolygonfields = ['FID', 'OBJECTID', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
 
     # create an empty list to contain the attribute names from the test data
     datapolygonfields = []
@@ -1920,6 +2230,31 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
     for child in repairPOSfieldsTL.winfo_children():
         child.grid_configure(padx=2, pady=5)
 
+# Take the exisiting CRS and convert to WGS 84
+def changeCRS(shapefiletofix, speciesname, freshwater):
+    # print the current CRS
+    print(shapefiletofix.crs)
+
+    try:
+        shapefiletofix = shapefiletofix.to_crs({'init': 'epsg:4326'})
+        # after all changes have occurred then save the file
+        fp = locationofmaps.get()
+        shapefiletofix.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+    except:
+        messagebox.showerror(title="Global Llama", message="Error when transforming data")
+
+    # print the new crs
+    print(shapefiletofix.crs)
+
+    # create the new map
+    rownumber = (tablerownumber.get())
+    createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+
+    # destroy the maptests level and rerun
+    maptestslevel.destroy()
+    # instead of running the whole thing again, remember the f
+    maptests(speciesname, freshwater)
+
 # the shell for the map attributes testing
 def maptests(speciesname, freshwater):
     global maptestslevel
@@ -2094,7 +2429,7 @@ def maptests(speciesname, freshwater):
     # check that the projection system being used is correct
     if data.crs['init'] != "epsg:4326":
         ttk.Label(maptestslevel, text="Coordinate Reference System Error", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=10, column=0, sticky=NSEW)
-        ttk.Button(maptestslevel, text="Fix").grid(row=10, column=1)
+        ttk.Button(maptestslevel, text="Fix", command=lambda: changeCRS(data, speciesname, freshwater)).grid(row=10, column=1)
     else:
         ttk.Label(maptestslevel, text="Coordinate Reference System Check", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=10, column=0, sticky=NSEW)
         ttk.Label(maptestslevel, text="PASSED", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=10, column=1, sticky=NSEW)
@@ -2539,6 +2874,16 @@ def taxreturntomainspecial():
     taxadderassistantframe.tkraise()
     root.update()
 
+# function to grab the taxon ID from the URL
+def gettaxonID():
+    global databaseta
+
+    # first get the URL, pull the TAXON id out, and store it in the excel document.
+    url = driver.current_url
+    spliturl = url.split('T')
+
+    return spliturl[1]
+
 # add species or other level to SIS.
 def add(leveltoadd, databasecolumn, button):
     # global variables needed
@@ -2564,7 +2909,7 @@ def add(leveltoadd, databasecolumn, button):
         workingsetvalue = workingsetSV.get()
 
         # get the genus ID from internal dictionary
-        genusid = databaseta.iat[rownumber, 9]
+        genusid = databaseta.iat[rownumber, 21]
         try:
             # open advanced search box
             driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
@@ -2694,14 +3039,18 @@ def add(leveltoadd, databasecolumn, button):
 
         # if it's got this far then all is good, save the species to the database
         try:
-            # save the current name to the database (as user may have altered)
+            # save the current name, taxonomic authority, taxonomic reference and workingset to the database (as user may have altered)
             databaseta.iat[rownumber, 12] = speciesvalue
+            databaseta.iat[rownumber, 16] = taxauthvalue
+            databaseta.iat[rownumber, 17] = taxrefvalue
+            databaseta.iat[rownumber, 18] = workingsetvalue
             # change the SIS species label to this new value
             SISSpeciesSV.set(speciesvalue)
             # change the user side to blank
             userSpeciesSV.set("")
-            # mark "Species added" column to yes
+            # mark "Species added" column to yes and change the species check value to the name added
             databaseta.iat[rownumber, 19] = "Yes"
+            databaseta.iat[rownumber, 13] = "M"
             # rerun the arrow setter and duplicate remover
             arrowsorter()
             duplicateremover()
@@ -2726,15 +3075,8 @@ def add(leveltoadd, databasecolumn, button):
         taxauthvalue = taxauthSV.get()
         taxrefvalue = taxrefSV.get()
 
-        if leveltoadd == "genus":
-            nextlevel = 9
-        elif leveltoadd == "family":
-            nextlevel = 7
-        elif leveltoadd == "order":
-            nextlevel = 5
-
-        # get the taxlevel ID from internal dictionary
-        taxlevelid = databaseta.iat[rownumber, nextlevel]
+        # get the taxlevel ID from the ID column
+        taxlevelid = databaseta.iat[rownumber, 21]
         try:
             # open advanced search box
             driver.find_element_by_xpath("//*[contains(text(), 'Advanced Search')]").click()
@@ -2837,16 +3179,31 @@ def add(leveltoadd, databasecolumn, button):
 
         # if it's got this far then all is good, save the tax level to the database
         try:
+            # sleep for a second to let the webpage update
+            time.sleep(1)
             # save the current name to the database (as user may have altered)
             databaseta.iat[rownumber, databasecolumn] = taxlevelvalue
+            databaseta.iat[rownumber, databasecolumn + 1] = "M"
+            # update the id at the end with the new ID
+            newid = gettaxonID()
+            databaseta.iat[rownumber, 21] = int(newid)
             # change the SIS species label to this new value
-            buttonchanger(hierarchylist2SIStext[databasecolumn], taxlevelvalue)
+            buttonchanger(hierarchylist2SIStext[int(databasecolumn/2)], taxlevelvalue)
             # change the user side to blank
-            buttonchanger(hierarchylist2SIStext[databasecolumn], "")
-            # rerun the arrow setter and duplicate remover
-            #taxonomychecker()
+            buttonchanger(hierarchylist2usertext[int(databasecolumn/2)], "")
+            # iterate through the rest of the column, whereever you get a match check the rest of the info to ensure match and then mark as added
+            # get columm before data and store
+            previouscolumn = databaseta.iat[rownumber, databasecolumn-2]
+            for x in range(rownumber+1, len(databaseta)):
+                if databaseta.iat[x, databasecolumn] == taxlevelvalue and databaseta.iat[x, databasecolumn-2] == previouscolumn:
+                    databaseta.iat[x, databasecolumn + 1] = "M"
+                    databaseta.iat[x, 21] = 0
+                    databaseta.iat[x, 21] = int(newid)
             # save it all
             taxsave()
+            # rerun the arrow setter and duplicate remover
+            arrowsorter()
+            duplicateremover()
             # try and close the window
             button.set("Details")
             details.destroy()
@@ -2863,8 +3220,11 @@ def addandclosebox():
     # get the rowcounter
     rowcounter = taxonomyrowtrackerIntVar.get()
 
-    # write the answer to the database and save
-    databaseta.iat[rowcounter, 11] = "Taxonomic source has this as a synonym of %s" % synonymtoadd.get()
+    # record that species not added
+    databaseta.iat[rowcounter, 19] = "No"
+    # record a note saying that the species is in the taxonomic source as a synonym
+    databaseta.iat[rowcounter, 20] = "Taxonomic source has this as a synonym of %s" % synonymtoadd.get()
+    # change the screen to report this info
     buttonchanger("userClassSV", "Source indicated synonym of %s" % synonymtoadd.get())
     taxlabel12.grid(columnspan=3)
     taxlabel12.config(wraplength=250)
@@ -2881,8 +3241,11 @@ def cantfind():
     # get the rowcounter
     rowcounter = taxonomyrowtrackerIntVar.get()
 
-    # write the answer to the database and save
-    databaseta.iat[rowcounter, 11] = "Unable to find in Taxonomic Source to check"
+    # record that the species has not been found
+    databaseta.iat[rowcounter, 19] = "No"
+    # record a note that it was not able to be found in the taxonomic source
+    databaseta.iat[rowcounter, 20] = "Unable to find in Taxonomic Source to check"
+    # update screen
     buttonchanger("userClassSV", "Unable to find in Taxonomic Source")
     taxlabel12.grid(columnspan=3)
     taxlabel12.config(wraplength=250)
@@ -3062,25 +3425,13 @@ def resetadvancedoptions():
     # close the advanced options box
     driver.find_element_by_css_selector('.x-nodrag.x-tool-close.x-tool.x-component').click()
 
-# function to grab the taxon ID from the URL
-def gettaxonID():
-    global databaseta
-
-    # first get the URL, pull the TAXON id out, and store it in the excel document.
-    url = driver.current_url
-    spliturl = url.split('T')
-
-    return spliturl[1]
-
 # main algorithm for the taxonomy checker
 def taxonomychecker(numbertoprocess):
     global databaseta
     global preprocesswindow
 
     for x in range(0, numbertoprocess):
-
         rownumber = taxonomyrowtrackerIntVar.get() + x
-
         try:
             # first search for the genus+species combination
             genusandspecies = searchbyanything("%s %s" % (databaseta.iat[rownumber, 10], databaseta.iat[rownumber, 12]))
@@ -3089,6 +3440,9 @@ def taxonomychecker(numbertoprocess):
                 print("Species Found")
                 # check the SIS taxonomy reporting any differences you might find
                 taxonomyhierarchychecker(rownumber)
+                # mark the species as Not added, and a note of already in SIS
+                databaseta.iat[rownumber, 19] = "No"
+                databaseta.iat[rownumber, 20] = "Already in SIS"
                 # raise exception to get out of this iteration of the loop
                 raise NameError("LlamaNoise")
             # if not found then run a synonym check
@@ -3097,6 +3451,8 @@ def taxonomychecker(numbertoprocess):
                 if genusandspeciessyn == 1:
                     print("Species synonym found")
                     taxonomyhierarchychecker(rownumber)
+                    databaseta.iat[rownumber, 19] = "No"
+                    databaseta.iat[rownumber, 20] = "Species exists in SIS as a synonym of %s" % genusandspeciessyn
                     resetadvancedoptions()
                     # raise exception to get out of this iteration of the loop
                     raise NameError("LlamaNoise")
@@ -3104,27 +3460,53 @@ def taxonomychecker(numbertoprocess):
                     print("No species synonym found")
                     resetadvancedoptions()
 
-            # then search for the genus
-            genusalone = searchbyanything("%s" % (databaseta.iat[rownumber, 10]))
-            if genusalone == 1:
-                # if returns 1 then it means a match has been found
-                print("Genus Found")
-                # check the SIS taxonomy reporting any differences you might find
-                taxonomyhierarchychecker(rownumber)
-                # raise exception to get out of this iteration of the loop
+            # then search for the genus if not marked already as found
+            if databaseta.iat[rownumber, 11] == "M":
+                databaseta.iat[rownumber, 22] = 1
                 raise NameError("LlamaNoise")
-            # if not found then run a synonym check
             else:
-                genusalonessyn = synonymchecker("%s" % (databaseta.iat[rownumber, 10]))
-                if genusalonessyn == 1:
-                    print("Genus Synonym Found")
+                genusalone = searchbyanything("%s" % (databaseta.iat[rownumber, 10]))
+                if genusalone == 1:
+                    # if returns 1 then it means a match has been found
+                    print("Genus Found")
+                    # check the SIS taxonomy reporting any differences you might find
                     taxonomyhierarchychecker(rownumber)
-                    resetadvancedoptions()
-                    # raise exception to get out of this iteration of the loop
+                    # run through the rest of the column if any species have the same genus and family, premark as ok
+                    # get the mark values
+                    kingdomcheckvalue = databaseta.iat[rownumber, 1]
+                    phylumcheckvalue = databaseta.iat[rownumber, 3]
+                    classcheckvalue = databaseta.iat[rownumber, 5]
+                    ordercheckvalue = databaseta.iat[rownumber, 7]
+                    familycheckvalue = databaseta.iat[rownumber, 9]
+                    idcheckvalue = databaseta.iat[rownumber, 21]
+                    # get the values for testing
+                    familycolumn = databaseta.iat[rownumber, 8]
+                    genuscolumn = databaseta.iat[rownumber, 10]
+                    for y in range(rownumber, len(databaseta)):
+                        if databaseta.iat[y, 10] == genuscolumn and databaseta.iat[y, 8] == familycolumn:
+                            databaseta.iat[y, 11] = "M"
+                            # mark the rest of the columns with the same value that they have thus been found
+                            databaseta.iat[y, 1] = kingdomcheckvalue
+                            databaseta.iat[y, 3] = phylumcheckvalue
+                            databaseta.iat[y, 5] = classcheckvalue
+                            databaseta.iat[y, 7] = ordercheckvalue
+                            databaseta.iat[y, 9] = familycheckvalue
+                            databaseta.iat[y, 21] = idcheckvalue
+                    # finally raise exception to get out of this iteration of the loop
                     raise NameError("LlamaNoise")
+                # if not found then run a synonym check
                 else:
-                    print("No Genus Synonym Found")
-                    resetadvancedoptions()
+                    genusalonessyn = synonymchecker("%s" % (databaseta.iat[rownumber, 10]))
+                    if genusalonessyn == 1:
+                        print("Genus Synonym Found")
+                        taxonomyhierarchychecker(rownumber)
+                        resetadvancedoptions()
+                        # raise exception to get out of this iteration of the loop
+                        raise NameError("LlamaNoise")
+                    else:
+                        print("No Genus Synonym Found")
+                        resetadvancedoptions()
+
 
             # then search for the family
             familyalone = searchbyanything("%s" % (databaseta.iat[rownumber, 8]))
@@ -3249,12 +3631,8 @@ def taxonomyhierarchychecker(rownumber):
     time.sleep(1)
     SISList = ["SISKingdomSV", "SISPhylumSV", "SISClassSV", "SISOrderSV", "SISFamilySV", "SISGenusSV", "SISSpeciesSV"]
 
-    # set all to 0
-    for x in range(0, 7):
-        databaseta.iat[rownumber, (x * 2) + 1] = 0
-
     # grab and store taxonomy
-    taxid = gettaxonID()
+    taxid = int(gettaxonID())
 
     # open up the hierarchy and test against the provided taxonomy
     driver.find_element_by_xpath("//*[contains(text(), 'View Hierarchy')]").click()
@@ -3269,22 +3647,22 @@ def taxonomyhierarchychecker(rownumber):
             speciesonly = y.text.split()[1]
             buttonchanger("%s" % SISList[x], speciesonly)
             if speciesonly == databaseta.iat[rownumber, x * 2]:
-                databaseta.iat[rownumber, (x * 2) + 1] = 1
+                databaseta.iat[rownumber, (x * 2) + 1] = "M"
                 # mark the species check as good
             else:
                 # mark the species check as bad
-                databaseta.iat[rownumber, (x * 2) + 1] = 0
-        elif y.text == databaseta.iat[0, x * 2]:
+                databaseta.iat[rownumber, (x * 2) + 1] = speciesonly
+        elif y.text == databaseta.iat[rownumber, x * 2]:
             buttonchanger("%s" % SISList[x], y.text)
             # mark the species check as good
-            databaseta.iat[rownumber, (x * 2) + 1] = 1
+            databaseta.iat[rownumber, (x * 2) + 1] = "M"
         else:
             buttonchanger("%s" % SISList[x], y.text)
             # mark the tax level check as bad
-            databaseta.iat[rownumber, (x * 2) + 1] = 0
+            databaseta.iat[rownumber, (x * 2) + 1] = y.text
     root.update()
-    # record the taxon id to the
-    databaseta.iat[rownumber, (len(fulltaxonomy) * 2) - 1] = taxid
+    # record the taxon id to the id box at the end
+    databaseta.iat[rownumber, 21] = taxid
 
     # record that the species has been preprocessed
     databaseta.iat[rownumber, 22] = 1
