@@ -26,7 +26,7 @@ div.fixed {
 	position: fixed;
 	bottom: 0px;
 	width: 100%;
-	overflow-y: auto;
+	height: 14%;
 	overflow-x: auto;
 	z-index:9999;
 	left: 0px;
