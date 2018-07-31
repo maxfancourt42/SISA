@@ -13,6 +13,8 @@ import csv
 import os
 import time
 import subprocess
+from subprocess import call
+import pip
 
 import dropbox
 
@@ -4170,6 +4172,41 @@ def taxonomyhierarchychecker(rownumber):
     resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
     driver.execute_script("arguments[0].click();", resetimage)
 
+# script to update all python packages currently installed
+def UpdatePackages():
+    packages = pip.get_installed_distributions()
+    n_packages = len(packages)
+
+    for i, package in enumerate(packages):
+        name = package.project_name
+        if name == "fiona" or name == "gdal" or name == "shapely":
+            pass
+        else:
+            print('Updating ' + str(i + 1) + ' of ' + str(n_packages) + ': ' + name)
+            call('pip install --upgrade ' + name, shell=True)
+
+    # at the end reinstall the three troublesome files from dependencies
+    # then install GDAL
+    print("Install GDAL")
+    subprocess.Popen('cmd.exe /C pip install %s/Dependencies/GDAL-2.2.4-cp36-cp36m-win32.whl' % filedir)
+
+    # then install Fiona
+    print("Install Fiona")
+    subprocess.Popen('cmd.exe /C pip install %s/Dependencies/Fiona-1.7.11.post1-cp36-cp36m-win32.whl' % filedir)
+
+    # then install Shapely
+    print("Install Shapely")
+    subprocess.Popen('cmd.exe /C pip install %s/Dependencies/Shapely-1.6.4.post1-cp36-cp36m-win32.whl' % filedir)
+
+    time.sleep(3)
+
+    # restart python application
+    print("Restarting Program")
+    subprocess.Popen('cmd.exe /C  python %s\ReviewAssistant.py' % filedir)
+    # close the current version
+    quit()
+
+
 # downloads manifest from dropbox update folder and checks for what needs to be downloaded and updated
 def UpdateSISA():
     global filedir
@@ -4269,8 +4306,8 @@ def UpdateSISA():
     # report completion
     print("Update Complete")
     messagebox.showinfo(title="Golden Shiny Llama", message="Update Successful Restarting")
+
     # restart python application
-    print(filedir)
     subprocess.Popen('cmd.exe /C  python %s\ReviewAssistant.py' % filedir)
     # close the current version
     quit()
@@ -4361,6 +4398,11 @@ reviewassistantmenuframe = ttk.Frame(root, padding="0 0 0 0")
 reviewassistantmenuframe.grid(column=0, row=0, sticky=N+S+E+W)
 reviewassistantmenuframe.master.minsize(width=510, height=510)
 
+# options page
+optionsframe = ttk.Frame(root, padding="0 0 0 0")
+optionsframe.grid(column=0, row=0, sticky=N+S+E+W)
+optionsframe.master.minsize(width=510, height=510)
+
 # reviewassistantframe
 reviewassistantframe = ttk.Frame(root, padding="0 0 0 0")
 reviewassistantframe.grid(column=0, row=0, sticky=N+S+E+W)
@@ -4413,8 +4455,10 @@ try:
     versionfile.close()
     # check to see if version matches
     if version > versionnumber:
-        updateprogram = ttk.Button(mainframe, text="Update", command=lambda: UpdateSISA())
-        updateprogram.grid(column=6, row=2, sticky=SE)
+        ttk.Button(mainframe, text="Update Available", command=lambda: UpdateSISA()).grid(column=6, row=2, sticky=SE)
+
+    else:
+        ttk.Button(mainframe, text="Options", command=optionsframe.tkraise).grid(column=6, row=2, sticky=SE)
 
 except:
     ttk.Label("Update Offline").grid(column=6, row=2, sticky=SE)
@@ -4444,6 +4488,19 @@ ttk.Button(mainframe, text="Quit", command=quit).grid(column=0, row=12, sticky=(
 
 mainframe.columnconfigure((0, 1, 2), weight=1)
 mainframe.rowconfigure((3, 4, 5, 6, 7, 8, 9, 10, 11), weight=1)
+
+# Options Frame
+ttk.Label(optionsframe, image=topbar, borderwidth=0).grid(column=0, row=0, sticky=EW)
+ttk.Label(optionsframe, image=sislogo, borderwidth=0).grid(column=0, row=1, sticky=NW)
+ttk.Label(optionsframe, text="Options Menu", font=(None, 15), background="#DFE8F6").grid(column=0, row=2, sticky=EW)
+
+# buttons
+ttk.Button(optionsframe, text="Integrity Checker", command=lambda: UpdateSISA()).grid(column=0, row=3, sticky=SW)
+ttk.Button(optionsframe, text="Update Python Packages", command=lambda: UpdatePackages()).grid(column=0, row=4, sticky=SW)
+ttk.Button(optionsframe, text="Return to main menu", command=mainframe.tkraise).grid(column=0, row=10, sticky=SW)
+
+optionsframe.columnconfigure((0, 1, 2), weight=1)
+optionsframe.rowconfigure((2, 3, 4, 5, 6, 7, 8, 9, 10, 11), weight=1)
 
 # Taxonmyadderassistant frame (i.e. the menu for it)
 # labels
@@ -4796,6 +4853,10 @@ for child in taxadderassistantframe.winfo_children():
 
 for child in reviewassistantmenuframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
+
+for child in optionsframe.winfo_children():
+    child.grid_configure(padx=5, pady=5)
+
 
 # problematic libaries loading these last as this seems to fix the pyimage not existing error
 import pandas
