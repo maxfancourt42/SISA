@@ -103,6 +103,8 @@ def download():
     dbx.files_download_to_file(path="/ReviewAssistant.py", download_path="%s/SISA/ReviewAssistant.py" % (filedir))
     print("VersionNumber.txt")
     dbx.files_download_to_file(path="/VersionNumber.txt", download_path="%s/SISA/VersionNumber.txt" % (filedir))
+    print("APIkey.txt")
+    dbx.files_download_to_file(path="/APIkey.txt", download_path="%s/SISA/APIkey.txt" % (filedir))
 
     downloadstatus.set("Downloading Complete")
     root.update()
@@ -110,22 +112,6 @@ def download():
 
 def install():
     global filedir
-
-    installstatus.set("Unpacking folders")
-    root.update()
-    time.sleep(0.5)
-
-    # move the files out of the TempInstall folder into the main director
-    os.rename('%s/SISA/TempInstall/logo.ico' % filedir, '%s/SISA/logo.ico' % filedir)
-    os.rename('%s/SISA/TempInstall/ReviewAssistant.py' % filedir, '%s/SISA/ReviewAssistant.py' % filedir)
-    os.rename('%s/SISA/TempInstall/VersionNumber.txt' % filedir, '%s/SISA/VersionNumber.txt' % filedir)
-
-    installstatus.set("Removing Temp Files")
-    root.update()
-    time.sleep(0.5)
-
-    # remove the TempInstall Folder
-    os.rmdir('%s/SISA/TempInstall/' % filedir)
 
     installstatus.set("Installing Pip wheel")
     root.update()
