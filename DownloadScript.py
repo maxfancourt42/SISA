@@ -5,9 +5,13 @@ from tkinter import filedialog
 from tkinter import simpledialog
 
 import os
-import dropbox
 import time
 import subprocess
+
+# install dropbox before anything nothing can be downloaded
+subprocess.Popen('cmd.exe /C pip install dropbox')
+
+import dropbox
 
 # asks the user to choose the install directory and then creates the empty file structure within
 def setinstalldir():
@@ -15,25 +19,24 @@ def setinstalldir():
     # ask the user where they want to install SISA
     filedir = tkinter.filedialog.askdirectory()
 
-    if filedir != "":
-        filelocation.set("%s/SISA/" % filedir)
-        # create the top level installation folder
-        os.makedirs("%s/SISA" % filedir)
-        # create the Dependencies folder
-        os.makedirs("%s/SISA/Dependencies" % filedir)
-        # create the Images folder
-        os.makedirs("%s/SISA/Images" % filedir)
-        # create the ChromeDriver folder
-        os.makedirs("%s/SISA/ChromeDriver" % filedir)
-        # create the internal spatial data store
-        os.makedirs("%s/SISA/SpatialDataStore" % filedir)
-        # create the HTMLFiles folder
-        os.makedirs("%s/SISA/HTMLFiles" % filedir)
-        # create the SpatialDataStore
-        os.makedirs("%s/SISA/SpatialDataStore" % filedir)
+    filelocation.set("%s/SISA/" % filedir)
+    # create the top level installation folder
+    os.makedirs("%s/SISA" % filedir)
+    # create the Dependencies folder
+    os.makedirs("%s/SISA/Dependencies" % filedir)
+    # create the TempFiles folder
+    os.makedirs("%s/SISA/TempFiles" % filedir)
+    # create the Images folder
+    os.makedirs("%s/SISA/Images" % filedir)
+    # create the ChromeDriver folder
+    os.makedirs("%s/SISA/ChromeDriver" % filedir)
+    # create the internal spatial data store
+    os.makedirs("%s/SISA/SpatialDataStore" % filedir)
+    # create the HTMLFiles folder
+    os.makedirs("%s/SISA/HTMLFiles" % filedir)
+    # create the ReviewDirections folder
+    os.makedirs("%s/SISA/ReviewDirections" % filedir)
 
-    else:
-        filedir = "C:/Users/fancourtm/Desktop/testdownload"
 
 def download():
     global filedir
@@ -73,6 +76,16 @@ def download():
     downloadstatus.set("Chromedriver Downloaded")
     root.update()
     time.sleep(0.5)
+    downloadstatus.set("Downloading ReviewDirections Files")
+
+    # download the ReviewDirections
+    for entry in dbx.files_list_folder("/ReviewDirections").entries:
+        print(entry.name)
+        dbx.files_download_to_file(path="/ReviewDirections/%s" % entry.name, download_path="%s/SISA/ReviewDirections/%s" % (filedir, entry.name))
+
+    downloadstatus.set("ReviewDirections Downloaded")
+    root.update()
+    time.sleep(0.5)
     downloadstatus.set("Downloading HTML Files")
 
     # download the HTMLFIles
@@ -83,29 +96,75 @@ def download():
     downloadstatus.set("HTML Files Downloaded")
     root.update()
     time.sleep(0.5)
-    downloadstatus.set("Downloading Complete")
+    print("logo.ico")
+    downloadstatus.set("Downloading Loose Files")
+    dbx.files_download_to_file(path="/logo.ico", download_path="%s/SISA/logo.ico" % (filedir))
+    print("ReviewAssistant.py")
+    dbx.files_download_to_file(path="/ReviewAssistant.py", download_path="%s/SISA/ReviewAssistant.py" % (filedir))
+    print("VersionNumber.txt")
+    dbx.files_download_to_file(path="/VersionNumber.txt", download_path="%s/SISA/VersionNumber.txt" % (filedir))
 
-    # TO DO
-    # download the Review Assistant python script and then place a .BAT file on the
+    downloadstatus.set("Downloading Complete")
+    root.update()
 
 
 def install():
     global filedir
 
+    installstatus.set("Unpacking folders")
+    root.update()
+    time.sleep(0.5)
+
+    # move the files out of the TempInstall folder into the main director
+    os.rename('%s/SISA/TempInstall/logo.ico' % filedir, '%s/SISA/logo.ico' % filedir)
+    os.rename('%s/SISA/TempInstall/ReviewAssistant.py' % filedir, '%s/SISA/ReviewAssistant.py' % filedir)
+    os.rename('%s/SISA/TempInstall/VersionNumber.txt' % filedir, '%s/SISA/VersionNumber.txt' % filedir)
+
+    installstatus.set("Removing Temp Files")
+    root.update()
+    time.sleep(0.5)
+
+    # remove the TempInstall Folder
+    os.rmdir('%s/SISA/TempInstall/' % filedir)
+
+    installstatus.set("Installing Pip wheel")
+    root.update()
+    time.sleep(0.5)
+
     # first ensure that wheel is installed for python
     subprocess.Popen('cmd.exe /C pip install wheel')
+
+    installstatus.set("Installing GDAL")
+    root.update()
+    time.sleep(0.5)
 
     # then install GDAL
     subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/GDAL-2.2.4-cp36-cp36m-win32.whl' % filedir)
 
+    installstatus.set("Installing Fiona")
+    root.update()
+    time.sleep(0.5)
+
     # then install Fiona
     subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Fiona-1.7.11.post1-cp36-cp36m-win32.whl' % filedir)
+
+    installstatus.set("Installing Shapely")
+    root.update()
+    time.sleep(0.5)
 
     # then install Shapely
     subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Shapely-1.6.4.post1-cp36-cp36m-win32.whl' % filedir)
 
+    installstatus.set("Installing Other required libaries")
+    root.update()
+    time.sleep(0.5)
+
     # then install the rest according to the provided requirements txt that ships with download
-    subprocess.Popen('cmd.exe /K pip install -r C:\\Users\\fancourtm\\Desktop\\testdownload\\SISA\\Dependencies\\requirements.txt')
+    subprocess.Popen('cmd.exe /C pip install -r %s/SISA/Dependencies/requirements.txt' % filedir)
+
+    installstatus.set("Installation Complete")
+    root.update()
+    time.sleep(0.5)
 
 # create the installer GUI
 root = Tk()
@@ -117,6 +176,9 @@ filelocation = StringVar()
 filelocation.set("Install Path Not Set")
 downloadstatus = StringVar()
 downloadstatus.set("Pending")
+installstatus = StringVar()
+installstatus.set("Pending")
+
 
 # setup style for tbe GUI
 style = ttk.Style()
@@ -137,19 +199,20 @@ mainframe.master.minsize(width=510, height=510)
 # Labels
 ttk.Label(mainframe, text="SIS Assistant Installer", font=(None, 15), background="#DFE8F6").grid(column=1, row=0)
 ttk.Label(mainframe, text="Step 1. Select Install Location", font=(None, 12), background="#DFE8F6").grid(column=1, row=1)
-ttk.Label(mainframe, textvariable=filelocation, font=(None, 10), background="#DFE8F6").grid(column=1, row=3)
+ttk.Label(mainframe, textvariable=filelocation, font=(None, 10), background="#DFE8F6").grid(column=1, row=2)
 ttk.Label(mainframe, text="Step 2. Download Required Files", font=(None, 12), background="#DFE8F6").grid(column=1, row=5)
-ttk.Label(mainframe, textvariable=downloadstatus, font=(None, 10), background="#DFE8F6").grid(column=1, row=7)
-SolidDown = PhotoImage(file="C:\\Users\\fancourtm\\PycharmProjects\\SISA\\Images\\SolidDown.png")
-ttk.Label(mainframe, image=SolidDown).grid(column=1, row=10)
+ttk.Label(mainframe, textvariable=downloadstatus, font=(None, 10), background="#DFE8F6").grid(column=1, row=6)
+ttk.Label(mainframe, text="Step 3. Install Python Libaries", font=(None, 12), background="#DFE8F6").grid(column=1, row=8)
+ttk.Label(mainframe, textvariable=installstatus, font=(None, 10), background="#DFE8F6").grid(column=1, row=9)
+
 
 # buttons
 setinstalldirbutton = ttk.Button(mainframe, text="Select", command=lambda: setinstalldir())
-setinstalldirbutton.grid(column=1, row=4)
-downloadbutton = ttk.Button(mainframe, text="Select", command=lambda: download())
-downloadbutton.grid(column=1, row=8)
+setinstalldirbutton.grid(column=1, row=3)
+downloadbutton = ttk.Button(mainframe, text="Download", command=lambda: download())
+downloadbutton.grid(column=1, row=7)
 installbutton = ttk.Button(mainframe, text="Install", command=lambda: install())
-installbutton.grid(column=1, row=9)
+installbutton.grid(column=1, row=10)
 
 # final buffer tidy up
 mainframe.columnconfigure((0, 1, 2), weight=1)

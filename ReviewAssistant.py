@@ -12,7 +12,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 import csv
 import os
 import time
-import urllib.request
+import subprocess
+
+import dropbox
 
 import datetime
 import webbrowser
@@ -1634,7 +1636,7 @@ def checkpolygonfields(shapefiletotest, freshwater):
         requiredpolygonfields = ['ID_NO', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'geometry']
     # create a list that contains all the required polygon attributes
     # create a list that contains all the optional polygon attributes
-    optionalpolygonfields = ['FID', 'OBJECTID', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
+    optionalpolygonfields = ['SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
 
     # create an empty list to contain the attribute names from the test data
     datapolygonfields = []
@@ -1671,10 +1673,10 @@ def checkpointfields(shapefiletotest, freshwater):
     returnlist = [[] for _ in range(2)]
 
     # create the basic require points list
-    requiredpointfields = ['Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year', 'geometry']
+    requiredpointfields = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year', 'geometry']
 
     # create a list that contains all the optional polygon attributes
-    optionalpointfields = ['FID', 'OBJECTID', 'Source', 'Dist_comm', 'Island', 'SUBSPECIES', 'SUBPOP', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChang']
+    optionalpointfields = ['Source', 'Dist_comm', 'Island', 'SUBSPECIES', 'SUBPOP', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChang']
 
     # create an empty list to contain the attribute names from the test data
     datapointfields = []
@@ -1816,6 +1818,21 @@ def checkfield(shapefiletotest, attributetoinspect):
         except:
             binomialerrors.append(['Binomial Error'])
             return binomialerrors
+
+    # check to see if ID_NO matches the SIS ID that we have for the species return if single error found
+    elif attributetoinspect == 'SISID':
+        SISIDerrors = []
+        # get the SIS ID from the spreadsheet
+        correctID = databasera.iat[rownumber, 0]
+        try:
+            for SISIDrow, SISIDvalue in enumerate(shapefiletotest['ID_NO']):
+                if SISIDvalue != correctID:
+                    SISIDerrors.append(['ID_NO', SISIDrow])
+                    return SISIDerrors
+            return SISIDerrors
+        except:
+            SISIDerrors.append(['SISID Error'])
+            return SISIDerrors
 
     else:
         print("Invalid attribute provided")
@@ -2012,6 +2029,21 @@ def checkfieldpoints(shapefiletotest, attributetoinspect):
             geolongdeclongerrors.append('geolongdeclong Error')
             return geolongdeclongerrors
 
+    elif attributetoinspect == 'SISID':
+        SISIDerrors = []
+        # get the SIS ID from the spreadsheet
+        correctID = databasera.iat[rownumber, 0]
+        try:
+            for SISIDrow, SISIDvalue in enumerate(shapefiletotest['TaxonID']):
+                if SISIDvalue != correctID:
+                    SISIDerrors.append(['ID_NO', SISIDrow])
+                    return SISIDerrors
+            return SISIDerrors
+        except:
+            SISIDerrors.append(['SISID Error'])
+            return SISIDerrors
+
+
     else:
         print("Invalid attribute provided")
 
@@ -2020,7 +2052,7 @@ def checkattributeorder(shapefiletotest, pointorpoly):
     if pointorpoly == "Polygon":
         correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
     else:
-        correctorder = ['FID', 'OBJECTID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
+        correctorder = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
 
     finalorder=[]
     #first create the local correct order
@@ -2090,7 +2122,7 @@ def fixrequiredattributes(shapefiletofix, freshwater, missingrequired, speciesna
         else:
             correctorder = ['ID_NO', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION']
     else:
-        correctorder = ['ID_NO', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year']
+        correctorder = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year']
 
     # create a top level in the middle of the screen
     # create the toplevel to house everything
@@ -2131,6 +2163,8 @@ def fixrequiredattributes(shapefiletofix, freshwater, missingrequired, speciesna
         if 'combobox' in str(combobox):
             if combobox.instate([DISABLED, ]):
                 combobox.set("PRESENT")
+            else:
+                combobox.set("Add as a new variable")
 
     # finally add the commit button to the bottom
     ttk.Button(fixattributesTL, text="Commit Changes", command=lambda: commitchanges(correctorder, shapefiletofix, speciesname, freshwater)).grid(column=1, row=20, sticky=NSEW, columnspan=2)
@@ -2150,7 +2184,7 @@ def reorganiseattributes(shapefiletorearrange, speciesname, freshwater, pointorp
     if pointorpoly == "Polygon":
         correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
     else:
-        correctorder = ['FID', 'OBJECTID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
+        correctorder = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
 
     finalorder=[]
     # first run through and remove all attributes not present
@@ -2263,6 +2297,31 @@ def repairbinomialfield(shapefiletofix, speciesname ,freshwater, pointorpoly):
         shapefiletofix["BINOMIAL"] = correctname
     else:
         shapefiletofix["Binomial"] = correctname
+
+    # save the shapefile
+    fp = locationofmaps.get()
+    shapefiletofix.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+
+    # recreate the map
+    createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+
+    # destroy the maptests level and rerun
+    maptestslevel.destroy()
+    # instead of running the whole thing again, remember the f
+    maptests(speciesname, freshwater)
+
+# Repair the ID_NO field by copying the SIS ID into all the rows of the ID_NO column
+def repairIDNOfield(shapefiletofix, speciesname, freshwater, pointorpoly):
+    rownumber = (tablerownumber.get())
+
+    # get the correct name from the database
+    SISID = databasera.iat[rownumber, 0]
+
+    if pointorpoly == "Polygon":
+        # replace all values in the BINOMIAL field with the correct name
+        shapefiletofix["ID_NO"] = SISID
+    else:
+        shapefiletofix["TaxonID"] = SISID
 
     # save the shapefile
     fp = locationofmaps.get()
@@ -2475,8 +2534,7 @@ def repairlongandlat(shapefiletofix, speciesnam, errortable):
         ttk.Label(repairlongandlatTL, text="Dec_lat", relief="solid", background="#DFE8F6").grid(row=x+2, column=1, sticky=NSEW)
         ttk.Label(repairlongandlatTL, text="Dec_lat", relief="solid", background="#DFE8F6").grid(row=x+2, column=2, sticky=NSEW)
         ttk.Label(repairlongandlatTL, text="Dec_lat", relief="solid", background="#DFE8F6").grid(row=x+2, column=3, sticky=NSEW)
-        ttk.Combobox(repairlongandlatTL, state="normal", values=["Option1","Option2","Option3"]).grid(row=x+2, column=4)
-
+        ttk.Combobox(repairlongandlatTL, state="normal", values=["Option1", "Option2", "Option3"]).grid(row=x+2, column=4)
 
 # Take the exisiting CRS and convert to WGS 84
 def changeCRS(shapefiletofix, speciesname, freshwater, pointorpoly):
@@ -2559,7 +2617,7 @@ def maptests(speciesname, freshwater):
 
     # test to see if polygon or point tests are required
     # once data has loaded determine whether it is polygon or point
-    if data.geom_type[0] == "Polygon":
+    if data.geom_type[0] == "Polygon" or data.geom_type[0] == "MultiPolygon":
         rowcounterpoly = 1
         print("Polygon Data Tests")
         # find out if freshwater species (only needed for polygons)
@@ -2595,6 +2653,18 @@ def maptests(speciesname, freshwater):
             ttk.Label(maptestslevel, text="Non required/optional attributes present", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
             ttk.Button(maptestslevel, text="Fix", command=lambda: dropextrafields(data, speciesname, freshwater, "Polygon")).grid(row=rowcounterpoly, column=1)
             rowcounterpoly = rowcounterpoly + 1
+
+        # check the SIS ID column to see if it is correct or not
+        SISerrors = checkfield(data, 'SISID')
+        if len(SISerrors) > 0:
+            if SISerrors[0][0] == "SISID Error":
+                ttk.Label(maptestslevel, text="SIS Id attribute absent or mispelled", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
+                ttk.Label(maptestslevel, text="Field Required", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=1, sticky=NSEW)
+                rowcounterpoly = rowcounterpoly + 1
+            else:
+                ttk.Label(maptestslevel, text="ID_NO attribute doesn't match SIS ID", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: repairIDNOfield(data, speciesname, freshwater, "Polygon")).grid(row=rowcounterpoly, column=1)
+                rowcounterpoly = rowcounterpoly + 1
 
         # check to see if any errors have been detected in the BINOMIAL column
         binomerrors = checkfield(data, 'BINOMIAL')
@@ -2725,6 +2795,18 @@ def maptests(speciesname, freshwater):
             ttk.Label(maptestslevel, text="Non required/optional attributes present", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
             ttk.Button(maptestslevel, text="Fix", command=lambda: dropextrafields(data, speciesname, False, "Point")).grid(row=rowcounter, column=1)
             rowcounter = rowcounter + 1
+
+        # check the SIS ID column to see if it is correct or not
+        SISerrors = checkfieldpoints(data, 'SISID')
+        if len(SISerrors) > 0:
+            if SISerrors[0][0] == "SISID Error":
+                ttk.Label(maptestslevel, text="SIS Id attribute absent or mispelled", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
+                ttk.Label(maptestslevel, text="Field Required", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=1, sticky=NSEW)
+                rowcounter = rowcounter + 1
+            else:
+                ttk.Label(maptestslevel, text="ID_NO attribute doesn't match SIS ID", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: repairIDNOfield(data, speciesname, freshwater, "Point")).grid(row=rowcounter, column=1)
+                rowcounter = rowcounter + 1
 
         # check to see if any errors have been detected in the BINOMIAL column
         binomerrors = checkfieldpoints(data, 'BINOMIAL')
@@ -3066,7 +3148,7 @@ def createmap(speciesname):
     map.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
     # with data in geopandas database now check to see if you have polygon or point data (as different methods)
-    if data.geom_type[0] == "Polygon":
+    if data.geom_type[0] == "Polygon" or data.geom_type[0] == "MultiPolygon":
         print("Polygon Data")
         # unique part of creating a polygon map
         # transform the data into a json format for the folium engine
@@ -4088,6 +4170,110 @@ def taxonomyhierarchychecker(rownumber):
     resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
     driver.execute_script("arguments[0].click();", resetimage)
 
+# downloads manifest from dropbox update folder and checks for what needs to be downloaded and updated
+def UpdateSISA():
+    global filedir
+    global APIkey
+    global dbx
+
+    # create a list of the system folders
+    systemfolders = []
+    for root, dirs, files in os.walk(filedir):
+        for name in dirs:
+            systemfolders.append(name)
+
+    # create a list of the dropbox folders
+    dropboxfolders = []
+
+    for x in dbx.files_list_folder("").entries:
+        # strip out the files so only the directories are left
+        if "." not in x.name:
+            dropboxfolders.append(x.name)
+
+    # check to see if the system has any folders that need to be deleted
+    systemextra = set(systemfolders) - set(dropboxfolders)
+    todelete = []
+    for x in systemextra:
+        todelete.append(x)
+
+    if len(todelete) > 0:
+        print("Deleting unecessary folders")
+        # run through the list above and delete any extra files
+        for file in todelete:
+            # delete all subfiles
+            for subfile in os.listdir("%s\%s" % (filedir, file)):
+                os.remove("%s\%s\%s" % (filedir, file, subfile))
+
+            # once empty delete the main folder
+            os.rmdir("%s\%s" % (filedir, file))
+
+    # check to see if dropbox has any folders that need to be created
+    dropboxextra = set(dropboxfolders) - set(systemfolders)
+    tocreate = []
+    for x in dropboxextra:
+        tocreate.append(x)
+
+    if len(tocreate) > 0:
+        print("Creating additional required folders")
+        # run through the above list and create the folders needed
+        for x in tocreate:
+            os.makedirs("%s/%s" % (filedir, x))
+
+    # create a list of all files currently on the system
+    systemfiles = []
+    for root, dirs, files in os.walk(filedir):
+        for name in files:
+            systemfiles.append(os.path.join(root, name).split("SISA")[1].replace("\\", "/"))
+
+    # run through all the files on the dropbox to see if the system ones need replacing
+    dropboxfiles = []
+    dbnamesonly = []
+    for files in dbx.files_list_folder("", recursive=True).entries:
+        # strip out the files so only the directories are left
+        if "." in files.name:
+            dropboxfiles.append([files.path_display, files.size, files.server_modified])
+            dbnamesonly.append(files.path_display)
+
+    # compare all system files to dropbox, comparing name and size, if different then replace
+    for dropboxfile in dropboxfiles:
+        # first check to see if the file exists on the system
+        if dropboxfile[0] in systemfiles:
+            # get time of the creation of the system file
+            systemunixtime = os.path.getmtime("%s/%s" % (filedir, dropboxfile[0]))
+            # convert to time in timestamp
+            convertedsystemtime = datetime.datetime.fromtimestamp(systemunixtime)
+            # if daylight savings then convert appropriatly
+            if time.tzname[time.daylight] == "GMT Daylight Time":
+                convertedsystemtime = convertedsystemtime - datetime.timedelta(hours=1)
+            # get the dropbox timestamp and convert into format
+            dropboxtimetest = datetime.datetime.strptime(str(dropboxfile[2]), '%Y-%m-%d %H:%M:%S')
+
+            # if it does then compare the size and date of the file, if different the download and replace
+            if dropboxfile[1] != os.path.getsize("%s/%s" % (filedir, dropboxfile[0])) or (
+                    dropboxtimetest > convertedsystemtime):
+                print("Updating %s" % dropboxfile[0])
+                dbx.files_download_to_file(path=dropboxfile[0], download_path="%s%s" % (filedir, dropboxfile[0]))
+        else:
+            print("Downloading %s" % dropboxfile[0])
+            dbx.files_download_to_file(path=dropboxfile[0], download_path="%s%s" % (filedir, dropboxfile[0]))
+
+    # check to see if any extra system files that need to be deleted
+    filestodelete = set(systemfiles) - set(dbnamesonly)
+
+    if len(filestodelete) > 0:
+        print("Removing any uncessary files")
+        # run through the extra files and delete them
+        for x in filestodelete:
+            os.remove(filedir + x)
+
+    # report completion
+    print("Update Complete")
+    messagebox.showinfo(title="Golden Shiny Llama", message="Update Successful Restarting")
+    # restart python application
+    print(filedir)
+    subprocess.Popen('cmd.exe /C  python %s\ReviewAssistant.py' % filedir)
+    # close the current version
+    quit()
 
 # GUI code
 # setup root
@@ -4150,6 +4336,13 @@ mapengineactive.set(0)
 mapenginetext = StringVar()
 mapenginetext.set("Activate Maps")
 
+# load and setup version number
+versionnumbertext = StringVar()
+versionfile = open("%s/VersionNumber.txt" % filedir, 'r')
+versionnumber = versionfile.read()
+versionnumbertext.set("SISA Version %s" % versionnumber)
+versionfile.close()
+
 # setup style
 style = ttk.Style()
 style.configure("TFrame", background="#DFE8F6")
@@ -4197,9 +4390,35 @@ ttk.Label(mainframe, image=sislogo, borderwidth=0).grid(column=0, row=2, sticky=
 ttk.Label(mainframe, image=topbar, borderwidth=0).grid(column=0, row=1, columnspan=7)
 
 # main frame labels
-ttk.Label(mainframe, text="SISA v5.0", font=(None, 10), background="#DFE8F6").grid(column=6, row=2, sticky=NE)
+ttk.Label(mainframe, textvariable=versionnumbertext, font=(None, 10), background="#DFE8F6").grid(column=6, row=2, sticky=NE)
 ttk.Label(mainframe, text="Main Menu", font=(None, 15), background="#DFE8F6").grid(column=0, row=3, columnspan=8)
 ttk.Label(mainframe, text="Taxon ID, or Binomial", font=(None, 10), background="#DFE8F6").grid(column=0, row=5, sticky=(S, W, E))
+
+# update button (only show if an update is available (if fail then show can't check text)
+try:
+    # get API key from files
+    APIkeyfile = open("%s/APIkey.txt" % filedir, 'r')
+    APIkey = APIkeyfile.read()
+    APIkeyfile.close()
+
+    # create dropbox object
+    dbx = dropbox.Dropbox('%s' % APIkey)
+
+    # download the version number to see if it needs to be downloaded
+    dbx.files_download_to_file(path="/VersionNumber.txt", download_path="%s/VersionNumber.txt" % filedir)
+
+    # open the txt file and check the version number
+    versionfile = open("%s/VersionNumber.txt" % filedir, 'r')
+    version = versionfile.read()
+    versionfile.close()
+    # check to see if version matches
+    if version > versionnumber:
+        updateprogram = ttk.Button(mainframe, text="Update", command=lambda: UpdateSISA())
+        updateprogram.grid(column=6, row=2, sticky=SE)
+
+except:
+    ttk.Label("Update Offline").grid(column=6, row=2, sticky=SE)
+
 
 # mainframe string variables
 anyvariable = StringVar()
