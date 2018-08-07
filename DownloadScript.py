@@ -8,10 +8,12 @@ import os
 import time
 import subprocess
 
-# install dropbox before anything nothing can be downloaded
+# upgrade PIP before anything nothing can be downloaded
+subprocess.Popen('cmd.exe /C python -m pip install --upgrade pip')
 subprocess.Popen('cmd.exe /C pip install dropbox')
 
 import dropbox
+
 
 # asks the user to choose the install directory and then creates the empty file structure within
 def setinstalldir():
@@ -113,40 +115,83 @@ def download():
 def install():
     global filedir
 
+    # first ensure that wheel is installed for python
     installstatus.set("Installing Pip wheel")
     root.update()
     time.sleep(0.5)
 
-    # first ensure that wheel is installed for python
     subprocess.Popen('cmd.exe /C pip install wheel')
 
+    # install the annoying packages
+    # install GDAL
     installstatus.set("Installing GDAL")
     root.update()
     time.sleep(0.5)
 
-    # then install GDAL
-    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/GDAL-2.2.4-cp36-cp36m-win32.whl' % filedir)
+    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/GDAL-2.2.4-cp37-cp37m-win32.whl' % filedir)
 
+    # install Fiona
     installstatus.set("Installing Fiona")
     root.update()
     time.sleep(0.5)
 
-    # then install Fiona
-    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Fiona-1.7.11.post1-cp36-cp36m-win32.whl' % filedir)
+    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Fiona-1.7.13-cp37-cp37m-win32.whl' % filedir)
 
+    # install Shapely
     installstatus.set("Installing Shapely")
     root.update()
     time.sleep(0.5)
 
-    # then install Shapely
-    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Shapely-1.6.4.post1-cp36-cp36m-win32.whl' % filedir)
+    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/Shapely-1.6.4.post1-cp37-cp37m-win32.whl' % filedir)
 
-    installstatus.set("Installing Other required libaries")
+    # install Pyroj
+    installstatus.set("Installing Pyroj")
     root.update()
     time.sleep(0.5)
 
-    # then install the rest according to the provided requirements txt that ships with download
-    subprocess.Popen('cmd.exe /C pip install -r %s/SISA/Dependencies/requirements.txt' % filedir)
+    subprocess.Popen('cmd.exe /C pip install %s/SISA/Dependencies/pyproj-1.9.5.1-cp37-cp37m-win32.whl' % filedir)
+
+    # install pandas
+    installstatus.set("Installing pandas")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install pandas')
+
+    # install geopandas
+    installstatus.set("Installing geopandas")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install geopandas')
+
+    # install selenium
+    installstatus.set("Installing selenium")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install selenium')
+
+    # install xlrd
+    installstatus.set("Installing xlrd")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install xlrd')
+
+    # install XlsxWriter
+    installstatus.set("Installing XlsxWriter")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install XlsxWriter')
+
+    # install folium
+    installstatus.set("Installing folium")
+    root.update()
+    time.sleep(0.5)
+
+    subprocess.Popen('cmd.exe /C pip install folium')
 
     installstatus.set("Installation Complete")
     root.update()
