@@ -46,6 +46,17 @@ div.refresh{
     left: 10px;
     z-index:9999;
 }
+
+div.EOOCMP{
+    position: fixed;
+    top: 115px;
+    left: 10px;
+    z-index: 9999;
+    background-color: white;
+    padding: 5px;
+    text-align: center;
+    opacity: 0.8;
+}
                     
 tr:nth-child(even){background-color: #f2f2f2}
 tr:nth-child(odd){background-color: #ffffff}

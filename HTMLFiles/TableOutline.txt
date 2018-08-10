@@ -15,7 +15,7 @@
                 <td style="background-color:#ff0000">Extant (1)</th>
             </tr>
             <tr>
-                <td style="background-color:#ff9d00">Depreciated(2)</td>
+                <td style="background-color:#ff9d00">Deprecated(2)</td>
             </tr>
             <tr>
                 <td style="background-color:#fffa00">Possibly Extant (3)</td>
@@ -56,5 +56,7 @@
 	    <FORM>
             <INPUT TYPE="button" onClick="history.go(0)" VALUE="Refresh">
         </FORM>
+	</div>
+		<div class="EOOCMP">
 	</div>
 </body>
