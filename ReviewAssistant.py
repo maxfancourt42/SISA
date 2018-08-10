@@ -1,4 +1,4 @@
-# version 5.23
+# version 5.25
 
 # import the libaries needed
 from selenium import webdriver
@@ -1762,10 +1762,10 @@ def checkfield(shapefiletotest, attributetoinspect):
 
     elif attributetoinspect == 'SEASONAL':
         seasonalerrors = []
-        if shapefiletotest['SEASONAL'].dtype == 'object':
-            seasonalerrors.append(['Seasonal Text Error'])
-            return seasonalerrors
         try:
+            if shapefiletotest['SEASONAL'].dtype == 'object':
+                seasonalerrors.append(['Seasonal Text Error'])
+                return seasonalerrors
             shapefiletotest['SEASONAL'] = shapefiletotest['SEASONAL'].astype('int32')
             for srow, svalue in enumerate(shapefiletotest['SEASONAL']):
                 if svalue == 0 or svalue > 5:
@@ -2426,19 +2426,35 @@ def repairIDNOfield(shapefiletofix, speciesname, freshwater, pointorpoly):
     maptests(speciesname, freshwater)
 
 # Gets edits made by the user for the POS repairs and commits them to the shapefile
-def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname):
+def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, field):
     global repairPOSfieldsTL
+    global citationsession
     # first take the error table, add a new column which is the corrected data
     counter = 0
-    for combobox in repairPOSfieldsTL.children.values():
-        if 'combobox' in str(combobox):
-            # test to see if any invalid codes provided, cancel if so
-            if combobox.get() == "Invalid Code":
-                messagebox.showerror(title="Error Duck", message="Invalid Presence code provided please fix before committing")
-                return 0
-            else:
-                errortable[counter].append(combobox.get())
-                counter = counter + 1
+    if field == "compiler":
+        for combobox in repairPOSfieldsTL.children.values():
+            if 'combobox' in str(combobox):
+                # test to see if any invalid codes provided, cancel if so
+                if combobox.get() == "Invalid Code":
+                    messagebox.showerror(title="Error Duck", message="Invalid Presence code provided please fix before committing")
+                    return 0
+                else:
+                    errortable[counter].append(combobox.get())
+                    citationsession.append(combobox.get())
+                    counter = counter + 1
+    else:
+        for combobox in repairPOSfieldsTL.children.values():
+            if 'combobox' in str(combobox):
+                # test to see if any invalid codes provided, cancel if so
+                if combobox.get() == "Invalid Code":
+                    messagebox.showerror(title="Error Duck", message="Invalid Presence code provided please fix before committing")
+                    return 0
+                else:
+                    errortable[counter].append(combobox.get())
+                    counter = counter + 1
+    # run through the compiler record list and remove any duplicates
+    if field == "compiler":
+        citationsession = list(set(citationsession))
 
     # loop through the corrections and fix the shapefile
     for x in errortable:
@@ -2459,7 +2475,6 @@ def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname):
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
-    repairPOSfieldsTL.destroy()
     # instead of running the whole thing again, remember the f
     maptests(speciesname, freshwater)
 
@@ -2538,7 +2553,6 @@ def fillallPOS(value, attribute):
         else:
             messagebox.showerror(title="Error Duck", message="Invalid seasonality code")
             value.delete(0, len(testvalue))
-
     elif attribute == "compiler":
         for combobox in repairPOSfieldsTL.children.values():
             if 'combobox' in str(combobox):
@@ -2558,6 +2572,7 @@ def fillallPOS(value, attribute):
 # Repair the presence field, convert all 2's to 1 and flag the rest for review
 def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
     global repairPOSfieldsTL
+    global citationsession
 
     # create the toplevel to house everything
     # dimensions of parent window
@@ -2607,6 +2622,14 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
             ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
             ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
             ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=2, row=x + 2, sticky=NSEW)
+    elif field == "compiler":
+        # run through the error table, create a new row for each error
+        for x, y in enumerate(errortable):
+            # get the current code for this row
+            # if in the list of missing then create the label with the options
+            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
+            ttk.Combobox(repairPOSfieldsTL, state="normal", values=citationsession).grid(column=2, row=x + 2, sticky=NSEW)
     else:
         # run through the error table, create a new row for each error
         for x, y in enumerate(errortable):
@@ -2627,10 +2650,14 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
             counter = counter +1
 
     # finally add the commit button to the bottom
-    ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname)).grid(column=2, row=20, sticky=NSEW)
+    if field == "compiler":
+        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "compiler")).grid(column=2, row=20, sticky=NSEW)
+        test = ttk.Entry(repairPOSfieldsTL)
+    else:
+        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "other")).grid(column=2, row=20, sticky=NSEW)
+        test = ttk.Entry(repairPOSfieldsTL)
 
     # Add a fill all button
-    test = ttk.Entry(repairPOSfieldsTL)
     test.grid(column=1, row=20, sticky=NSEW)
     ttk.Button(repairPOSfieldsTL, text="Fill All", command=lambda: fillallPOS(test, field)).grid(column=0, row=20, sticky=NSEW)
 
@@ -2785,7 +2812,6 @@ def changeCRS(shapefiletofix, speciesname, freshwater, pointorpoly):
         except:
             messagebox.showerror(title="Global Llama", message="Error when transforming data")
 
-
     # print the new crs
     print(shapefiletofix.crs)
 
@@ -2793,6 +2819,42 @@ def changeCRS(shapefiletofix, speciesname, freshwater, pointorpoly):
     rownumber = (tablerownumber.get())
     createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
 
+    # destroy the maptests level and rerun
+    maptestslevel.destroy()
+    # instead of running the whole thing again, remember the f
+    maptests(speciesname, freshwater)
+
+# merges polygons with their duplicate, duplicate based on all attributes except geometry
+def mergeidenticalattributes(shapefiletofix, speciesname, freshwater):
+    # run through the list of ones to merge
+    columns = list(shapefiletofix.columns)
+    # get the iloc for the new column later
+    duplicatemapiloc = len(columns)
+    # remove the geometry column from the list to avoid it being used to match on
+    columns.remove('geometry')
+    # group by duplicates
+    grouped = shapefiletofix.groupby(columns)
+    # create a list to store the duplicate map in
+    duplicatemap = []
+    # create the duplicate maps
+    for key, value in grouped.groups.items():
+        duplicatemap.append(list(value.values))
+    # create a new column marking the duplicates
+    shapefiletofix["duplicatemap"] = 0
+    # run through the dataframe using the duplicate map to assign duplicates to the correct group
+    for setmarker, map in enumerate(duplicatemap):
+        for y in map:
+            shapefiletofix.iloc[y, duplicatemapiloc] = setmarker
+    # perform union based on duplicate column
+    final = shapefiletofix.dissolve(by="duplicatemap")
+    # save the file
+    # get the data from the designated location
+    fp = locationofmaps.get()
+    # after all changes have occurred then save the file
+    final.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+    # create the new map
+    rownumber = (tablerownumber.get())
+    createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
     # destroy the maptests level and rerun
     maptestslevel.destroy()
     # instead of running the whole thing again, remember the f
@@ -2955,9 +3017,22 @@ def maptests(speciesname, freshwater):
                 ttk.Button(maptestslevel, text="Fix").grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
-                ttk.Label(maptestslevel, text="Seasonal code error detected", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
+                ttk.Label(maptestslevel, text="Seasonal code error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
                 ttk.Button(maptestslevel, text="Fix", command=lambda: repairPOSfields(data, speciesname, freshwater, serrors, "seasonal")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
+
+        # check to see if any duplicate rows exist
+        try:
+            test = data.copy(deep=True)
+            test.drop("geometry", axis=1, inplace=True)
+            if sum(test.duplicated(keep=False)) != 0:
+                ttk.Label(maptestslevel, text="Identical rows found", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
+                ttk.Button(maptestslevel, text="Merge", command=lambda: mergeidenticalattributes(data, speciesname, freshwater)).grid(row=rowcounterpoly, column=1)
+                rowcounterpoly = rowcounterpoly + 1
+        except:
+            ttk.Label(maptestslevel, text="Identical row checking error ", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
+            ttk.Label(maptestslevel, text="Try again later", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=1, sticky=NSEW)
+            rowcounterpoly = rowcounterpoly + 1
 
         # check to see if any errors have been detected in the COMPILER column
         cerrors = checkfield(data, 'COMPILER')
@@ -3401,6 +3476,29 @@ def gotooption(event):
     # hide the selection menu
     dspchoice.withdraw()
 
+# takes the provided shapefile and returns the area of the MCP around all data marked as Presence = 1 (cea projected)
+def calculateeoobymcp(shapefile, pointorpoly):
+    if pointorpoly == "polygon":
+        # define the equal area projection
+        equalarea = {'proj': 'cea', 'lon_0': 0, 'lat_ts': 0, 'x_0': 0, 'y_0': 0, 'datum': 'WGS84', 'units': 'm', 'no_defs': True}
+
+        # get the number of polygons
+        nrofpoly = len(shapefile)
+
+        # go through and drop any polygons that don't have PRESENCE 1
+        for x in range(0, nrofpoly):
+            if shapefile.loc[x, "PRESENCE"] != 1:
+                shapefile.drop(x, axis=0, inplace=True)
+
+        # calculate and report the area of the polygon
+        rawdatatransform = shapefile.to_crs(equalarea)
+
+        final = rawdatatransform.dissolve(by="PRESENCE")
+
+        mcp = final.convex_hull
+
+        return "{} km²".format(float(round(mcp.area/10**6, 2)))
+
 # function to create the map for the current species
 def createmap(speciesname):
     global filedir
@@ -3488,15 +3586,32 @@ def createmap(speciesname):
     # define the location to save the table html
     finalfile = open("%s\\TempFiles\\%s_temp.html" % (filedir, speciesname), "w+")
 
-    # loop through the html and insert the created html text and the local location of the stylesheet
-    for line in tableoutline:
-        finalfile.write(line)
-        if 'href=' in line:
-            finalfile.write("\"%s\">" % location)
-        if '<div class="fixed">' in line:
-            for line2 in tocopyin:
-                finalfile.write("%s" % line2)
-
+    # check if the PRESENCE attribute is present and that the data is of the right type if it is then calculate EOO and insert
+    if "PRESENCE" in attributelist:
+        # check that the PRESENCE column is of type int
+        if data["PRESENCE"].dtype != "int64" or data["PRESENCE"].dtype != "int32":
+            MCP = calculateeoobymcp(data, "polygon")
+        for line in tableoutline:
+            finalfile.write(line)
+            if 'href=' in line:
+                finalfile.write("\"%s\">" % location)
+            if '<div class="fixed">' in line:
+                for line2 in tocopyin:
+                    finalfile.write("%s" % line2)
+            if '<div class="EOOCMP">' in line:
+                finalfile.write("<p>EOO(MCP) = %s</p>" % MCP)
+    # else run through as usual
+    else:
+        # loop through the html and insert the created html text and the local location of the stylesheet
+        for line in tableoutline:
+            finalfile.write(line)
+            if 'href=' in line:
+                finalfile.write("\"%s\">" % location)
+            if '<div class="fixed">' in line:
+                for line2 in tocopyin:
+                    finalfile.write("%s" % line2)
+            if '<div class="EOOCMP">' in line:
+                finalfile.write("<p>Presence 1 error</p>")
     # once looped close open files, and tidy up the temp files
     tableoutline.close()
     tocopyin.close()
@@ -4673,6 +4788,8 @@ mapengineactive = IntVar()
 mapengineactive.set(0)
 mapenginetext = StringVar()
 mapenginetext.set("Activate Maps")
+citationsession = []
+citationsession.append("None")
 
 # load and setup version number
 versionnumbertext = StringVar()
