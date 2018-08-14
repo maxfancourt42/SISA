@@ -1,4 +1,4 @@
-# version 5.25
+# version 5.26
 
 # import the libaries needed
 from selenium import webdriver
@@ -2429,10 +2429,12 @@ def repairIDNOfield(shapefiletofix, speciesname, freshwater, pointorpoly):
 def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, field):
     global repairPOSfieldsTL
     global citationsession
+    global label_frame
+
     # first take the error table, add a new column which is the corrected data
     counter = 0
     if field == "compiler":
-        for combobox in repairPOSfieldsTL.children.values():
+        for combobox in label_frame.children.values():
             if 'combobox' in str(combobox):
                 # test to see if any invalid codes provided, cancel if so
                 if combobox.get() == "Invalid Code":
@@ -2443,7 +2445,7 @@ def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, field)
                     citationsession.append(combobox.get())
                     counter = counter + 1
     else:
-        for combobox in repairPOSfieldsTL.children.values():
+        for combobox in label_frame.children.values():
             if 'combobox' in str(combobox):
                 # test to see if any invalid codes provided, cancel if so
                 if combobox.get() == "Invalid Code":
@@ -2528,7 +2530,7 @@ def fillallPOS(value, attribute):
 
     if attribute == "presence":
         if testvalue in ["1", "3", "4", "5", "6"]:
-            for combobox in repairPOSfieldsTL.children.values():
+            for combobox in label_frame.children.values():
                 if 'combobox' in str(combobox):
                     combobox.set(testvalue)
                     value.delete(0, len(testvalue))
@@ -2537,7 +2539,7 @@ def fillallPOS(value, attribute):
             value.delete(0, len(testvalue))
     elif attribute == "origin":
         if testvalue in ["1", "2", "3", "4", "5", "6"]:
-            for combobox in repairPOSfieldsTL.children.values():
+            for combobox in label_frame.children.values():
                 if 'combobox' in str(combobox):
                     combobox.set(testvalue)
                     value.delete(0, len(testvalue))
@@ -2546,7 +2548,7 @@ def fillallPOS(value, attribute):
             value.delete(0, len(testvalue))
     elif attribute == "seasonal":
         if testvalue in ["1", "2", "3", "4", "5"]:
-            for combobox in repairPOSfieldsTL.children.values():
+            for combobox in label_frame.children.values():
                 if 'combobox' in str(combobox):
                     combobox.set(testvalue)
                     value.delete(0, len(testvalue))
@@ -2554,14 +2556,14 @@ def fillallPOS(value, attribute):
             messagebox.showerror(title="Error Duck", message="Invalid seasonality code")
             value.delete(0, len(testvalue))
     elif attribute == "compiler":
-        for combobox in repairPOSfieldsTL.children.values():
+        for combobox in label_frame.children.values():
             if 'combobox' in str(combobox):
                 combobox.set(testvalue)
                 value.delete(0, len(testvalue))
 
     else:
         if len(testvalue) == 4 and int(testvalue) <= int(time.strftime("%Y")):
-            for combobox in repairPOSfieldsTL.children.values():
+            for combobox in label_frame.children.values():
                 if 'combobox' in str(combobox):
                     combobox.set(testvalue)
                     value.delete(0, len(testvalue))
@@ -2573,7 +2575,9 @@ def fillallPOS(value, attribute):
 def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
     global repairPOSfieldsTL
     global citationsession
+    global label_frame
 
+    # create top level
     # create the toplevel to house everything
     # dimensions of parent window
     x = root.winfo_screenwidth()
@@ -2582,92 +2586,149 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
     # set the width to the width of the
     repairPOSfieldsTL = Toplevel()
     repairPOSfieldsTL.config(background="#DFE8F6")
-    repairPOSfieldsTL.geometry('%dx%d+%d+%d' % (500, 500, x/2 - 250, y/2 - 250))
+    repairPOSfieldsTL.geometry('%dx%d+%d+%d' % (500, 500, x / 2 - 250, y / 2 - 250))
+    repairPOSfieldsTL.columnconfigure((0, 1, 2), weight=1)
+    repairPOSfieldsTL.rowconfigure((0), weight=1)
+    repairPOSfieldsTL.resizable(width=False, height=False)
+
+    # master frame to put it all in
+    frame_main = ttk.Frame(repairPOSfieldsTL)
+    frame_main.grid(row=0, column=0, sticky=NSEW, columnspan=3)
+    frame_main.grid_columnconfigure(2, weight=1)
+    frame_main.grid_rowconfigure(2, weight=1)
 
     # Create the table headers
-    ttk.Label(repairPOSfieldsTL, text="%s attribute errors" % field.capitalize(), font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=0, sticky=NSEW, columnspan=3)
-    ttk.Label(repairPOSfieldsTL, text="Error on row", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=1, sticky=NSEW)
-    ttk.Label(repairPOSfieldsTL, text="Current value", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=1, sticky=NSEW)
-    ttk.Label(repairPOSfieldsTL, text="New Value", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=2, row=1, sticky=NSEW)
+    ttk.Label(frame_main, text="%s attribute errors" % field.capitalize(), font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=0, sticky=NSEW, columnspan=3)
+    ttk.Label(frame_main, text="Error on row", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=1, sticky=NSEW)
+    ttk.Label(frame_main, text="Current Value", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=1, sticky=NSEW)
+    ttk.Label(frame_main, text="New Value", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=2, row=1, sticky=NSEW, columnspan=2)
+
+    # add a frame to house everything below
+    subframe = ttk.Frame(frame_main)
+    subframe.grid(row=2, column=0, sticky=NSEW, columnspan=3)
+    subframe.grid(row=2, column=0, sticky=NSEW)
+    subframe.grid_rowconfigure(0, weight=1)
+    subframe.grid_columnconfigure(0, weight=1)
+    subframe.grid_propagate(False)
+
+    # add canvas into this frame
+    canvas = Canvas(subframe)
+    canvas.grid(column=0, row=0, sticky=NSEW)
+    canvas.config(background="#DFE8F6", highlightthickness=0)
+
+    # add scroll bar
+    vsb = ttk.Scrollbar(subframe, orient="vertical", command=canvas.yview)
+    vsb.grid(row=0, column=1, sticky=NS)
+    canvas.configure(yscrollcommand=vsb.set)
+
+    # add frame on the canvas to contain the data
+    label_frame = ttk.Frame(canvas)
+    label_frame.grid(row=0, column=0, sticky=NSEW)
+
+    canvas.create_window((0, 0), window=label_frame, anchor=NW)
+
+    # set the parameters to fill in the table
+    columns = 3
+    rows = len(errortable)
+
+    # create the blank dictionary to track all entities
+    labels = [[ttk.Label(), ttk.Label(), ttk.Combobox] for j in range(rows)]
 
     if field == "presence":
         # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5, 6]).grid(column=2, row=x + 2, sticky=NSEW)
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=[1, 3, 4, 5, 6])
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
+
+        # run and convert all 2's to 1's (while leaving the option to change it to something else if wanted.
+        counter = 0
+        for combobox in label_frame.children.values():
+            if 'combobox' in str(combobox):
+                if shapefiletofix[errortable[counter][0]][errortable[counter][1]] == 2:
+                    combobox.set(1)
+                else:
+                    combobox.set("Invalid Code")
+                counter = counter + 1
+
     elif field == "origin":
         # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 3, 4, 5, 6]).grid(column=2, row=x + 2, sticky=NSEW)
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=[1, 2, 3, 4, 5, 6])
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
+
     elif field == "seasonal":
         # run through the error table, create a new row for each error
         for x, y in enumerate(errortable):
             # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5]).grid(column=2, row=x + 2, sticky=NSEW)
+            for i in range(0, rows):
+                labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+                labels[i][0].grid(column=0, row=i, sticky=NSEW)
+                labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+                labels[i][1].grid(column=1, row=i, sticky=NSEW)
+                labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=[1, 2, 3, 4, 5])
+                labels[i][2].grid(column=2, row=i, sticky=NSEW)
+
     elif field == "year":
-        # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=2, row=x + 2, sticky=NSEW)
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=["%s" % int(time.strftime("%Y"))])
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
+
     elif field == "compiler":
         # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="normal", values=citationsession).grid(column=2, row=x + 2, sticky=NSEW)
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=citationsession)
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
+
     else:
         # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            # if in the list of missing then create the label with the options
-            ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-            ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-            ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % shapefiletofix[errortable[x][0]][errortable[x][1]]]).grid(column=2, row=x + 2, sticky=NSEW)
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=["%s" % shapefiletofix[errortable[i][0]][errortable[i][1]]])
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
 
-    # run and convert all 2's to 1's (while leaving the option to change it to something else if wanted.
-    counter = 0
-    for combobox in repairPOSfieldsTL.children.values():
-        if 'combobox' in str(combobox):
-            if shapefiletofix[errortable[counter][0]][errortable[counter][1]] == 2:
-                combobox.set(1)
-            else:
-                combobox.set("Invalid Code")
-            counter = counter +1
+    # Update buttons frames idle tasks to let tkinter calculate buttons sizes
+    label_frame.update()
+
+    # first5columns_width = sum([labels[0][j].winfo_width() for j in range(0, columns)])
+    first5rows_height = sum([labels[i][0].winfo_height() for i in range(0, rows)])
+
+    # set the subframe width so that it matches the
+    subframe.config(height=first5rows_height, width=canvas.winfo_width())
 
     # finally add the commit button to the bottom
     if field == "compiler":
-        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "compiler")).grid(column=2, row=20, sticky=NSEW)
+        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "compiler")).grid(row=3, column=2, sticky="SEW")
         test = ttk.Entry(repairPOSfieldsTL)
     else:
-        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "other")).grid(column=2, row=20, sticky=NSEW)
+        ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, "other")).grid(row=3, column=2, sticky="SEW")
         test = ttk.Entry(repairPOSfieldsTL)
 
     # Add a fill all button
-    test.grid(column=1, row=20, sticky=NSEW)
-    ttk.Button(repairPOSfieldsTL, text="Fill All", command=lambda: fillallPOS(test, field)).grid(column=0, row=20, sticky=NSEW)
+    test.grid(row=3, column=1, sticky="SEW")
+    ttk.Button(repairPOSfieldsTL, text="Fill All", command=lambda: fillallPOS(test, field)).grid(row=3, column=0, sticky="SEW")
 
-    # give weight to the rows and column
-    repairPOSfieldsTL.columnconfigure((0, 1, 2), weight=1)
-    repairPOSfieldsTL.rowconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20), weight=1)
+    # Set the canvas scrolling region
+    canvas.config(scrollregion=canvas.bbox("all"))
 
-    # fill the remaing space
-    for child in repairPOSfieldsTL.winfo_children():
-        child.grid_configure(padx=2, pady=5)
 
 # Convert text field to numeric, giving the user manual input to change the fields
 def convertandrepairtextPOSfields(shapefiletofix, speciesname, freshwater, errortable, field, pointorpoly):
@@ -3479,26 +3540,28 @@ def gotooption(event):
 # takes the provided shapefile and returns the area of the MCP around all data marked as Presence = 1 (cea projected)
 def calculateeoobymcp(shapefile, pointorpoly):
     if pointorpoly == "polygon":
-        # define the equal area projection
-        equalarea = {'proj': 'cea', 'lon_0': 0, 'lat_ts': 0, 'x_0': 0, 'y_0': 0, 'datum': 'WGS84', 'units': 'm', 'no_defs': True}
+        try:
+            # define the equal area projection
+            equalarea = {'proj': 'cea', 'lon_0': 0, 'lat_ts': 0, 'x_0': 0, 'y_0': 0, 'datum': 'WGS84', 'units': 'm', 'no_defs': True}
 
-        # get the number of polygons
-        nrofpoly = len(shapefile)
+            # get the number of polygons
+            nrofpoly = len(shapefile)
 
-        # go through and drop any polygons that don't have PRESENCE 1
-        for x in range(0, nrofpoly):
-            if shapefile.loc[x, "PRESENCE"] != 1:
-                shapefile.drop(x, axis=0, inplace=True)
+            # go through and drop any polygons that don't have PRESENCE 1
+            for x in range(0, nrofpoly):
+                if shapefile.loc[x, "PRESENCE"] != 1:
+                    shapefile.drop(x, axis=0, inplace=True)
 
-        # calculate and report the area of the polygon
-        rawdatatransform = shapefile.to_crs(equalarea)
+            # calculate and report the area of the polygon
+            rawdatatransform = shapefile.to_crs(equalarea)
 
-        final = rawdatatransform.dissolve(by="PRESENCE")
+            final = rawdatatransform.dissolve(by="PRESENCE")
 
-        mcp = final.convex_hull
+            mcp = final.convex_hull
 
-        return "{} km²".format(float(round(mcp.area/10**6, 2)))
-
+            return "{} km²".format(float(round(mcp.area/10**6, 2)))
+        except:
+            return "EOO Couldn't be calculated"
 # function to create the map for the current species
 def createmap(speciesname):
     global filedir
@@ -3591,6 +3654,7 @@ def createmap(speciesname):
         # check that the PRESENCE column is of type int
         if data["PRESENCE"].dtype != "int64" or data["PRESENCE"].dtype != "int32":
             MCP = calculateeoobymcp(data, "polygon")
+        # check that none are 0
         for line in tableoutline:
             finalfile.write(line)
             if 'href=' in line:
@@ -3611,7 +3675,7 @@ def createmap(speciesname):
                 for line2 in tocopyin:
                     finalfile.write("%s" % line2)
             if '<div class="EOOCMP">' in line:
-                finalfile.write("<p>Presence 1 error</p>")
+                finalfile.write("<p>EOO couldn't be calculated</p>")
     # once looped close open files, and tidy up the temp files
     tableoutline.close()
     tocopyin.close()
