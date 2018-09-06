@@ -1,4 +1,4 @@
-# version 5.26
+# version 5.3
 
 # import the libaries needed
 from selenium import webdriver
@@ -15,6 +15,7 @@ import time
 import subprocess
 from subprocess import call
 import pip
+import collections
 
 import dropbox
 
@@ -62,7 +63,6 @@ def binary_search(haystack, preneedle):
     while True:
         if max < min:
             return -1
-
         test = ((min + max)//2)
         if haystack.iat[test, 0] < int(needle):
             min = test + 1
@@ -88,7 +88,7 @@ def login():
     # navigate to training homepage
     try:
         #driver.get("http://train.iucnsis.org/apps/org.iucn.sis.server/SIS/index.html#")
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(5)
         driver.get("http://sis.iucnsis.org/apps/org.iucn.sis.server/SIS/index.html")
 
         # find username and password boxes, inset details, press login button and report success
@@ -148,6 +148,9 @@ def logout():
 
 # function to search for a species using ID
 def searchbyanything(value):
+    # if coming from the homepage then try to wipe the storage variable
+    anyvariable.set("")
+
     # go back to the homepage
     resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
     driver.execute_script("arguments[0].click();", resetimage)
@@ -663,39 +666,29 @@ def loaddataandreadyreviewassistant():
         # Get the current species genus and name from the table and the species ID
         output = databasera.iat[rownumber, 1]
         output2 = databasera.iat[rownumber, 2]
-        speciesID = databasera.iat[rownumber,0]
+        speciesID = databasera.iat[rownumber, 0]
 
         # Get the correct Category and criteria from the table
         candcouput1 = databasera.iat[rownumber, 3]
         candcoutput2 = databasera.iat[rownumber, 4]
 
         # check to ensure that the database is still in the scope of the underlying database
-        if rownumber - 1 <= 0:
+        if rownumber - 1 < 0:
             previousspeciesoutput = ""
             previousspeciesoutput2 = ""
-
-            nextspeciesoutput = databasera.iat[rownumber + 1, 1]
-            nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
             goback.config(state='disabled')
-
-        elif rownumber + 1 >= len(databasera):
-            previousspeciesoutput = databasera.iat[rownumber - 1, 1]
-            previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
-
-            nextspeciesoutput = ""
-            nextspeciesoutput2 = ""
-
-            goforward.config(state='disabled')
-
         else:
             previousspeciesoutput = databasera.iat[rownumber - 1, 1]
             previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
+            goback.config(state='normal')
 
+        if rownumber + 1 >= len(databasera):
+            nextspeciesoutput = ""
+            nextspeciesoutput2 = ""
+            goforward.config(state='disabled')
+        else:
             nextspeciesoutput = databasera.iat[rownumber + 1, 1]
             nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
-            goback.config(state='normal')
             goforward.config(state='normal')
 
         # then set the value of the external rowtracker to the new value
@@ -1056,6 +1049,7 @@ def update(advorgoback):
     # check to make sure that you don't go out of bounds (i.e. can't go below 1)
     if advorgoback == -1 and (rownumber < 0):
         return 0
+
     # if valid then change the tracker for use in the function
     rownumber = ((tablerownumber.get()) + advorgoback)
     tablerownumber.set(rownumber)
@@ -1073,29 +1067,19 @@ def update(advorgoback):
     if rownumber - 1 < 0:
         previousspeciesoutput = ""
         previousspeciesoutput2 = ""
-
-        nextspeciesoutput = databasera.iat[rownumber + 1, 1]
-        nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
         goback.config(state='disabled')
-
-    elif rownumber + 1 >= len(databasera):
-        previousspeciesoutput = databasera.iat[rownumber - 1, 1]
-        previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
-
-        nextspeciesoutput = ""
-        nextspeciesoutput2 = ""
-
-        goforward.config(state='disabled')
-
     else:
         previousspeciesoutput = databasera.iat[rownumber - 1, 1]
         previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
+        goback.config(state='normal')
 
+    if rownumber + 1 >= len(databasera):
+        nextspeciesoutput = ""
+        nextspeciesoutput2 = ""
+        goforward.config(state='disabled')
+    else:
         nextspeciesoutput = databasera.iat[rownumber + 1, 1]
         nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
-        goback.config(state='normal')
         goforward.config(state='normal')
 
     # then set the value of the external rowtracker to the new value
@@ -1111,8 +1095,11 @@ def update(advorgoback):
     # if the map viewer has been activated then create map else skip
     # Get the current species genus and name from the table
     if mapengineactive.get() == 1:
-        # first destroy the current windows else they stack up
-        maptestslevel.destroy()
+        # first try to destroy the current windows (may not have appeared if no map for previous)
+        try:
+            maptestslevel.destroy()
+        except:
+            pass
         # check to see if current species map has been created, if it has then open it and display
         if os.path.isfile("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2)):
             webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2))
@@ -1260,7 +1247,7 @@ def preprocess():
     # number left in dataset
     numberleft = len(databaseta) - total
 
-    pre1 = ttk.Button(preprocesswindow, text="Preprocess 10", command=lambda: taxonomychecker(1))
+    pre1 = ttk.Button(preprocesswindow, text="Preprocess 1", command=lambda: taxonomychecker(1))
     pre10 = ttk.Button(preprocesswindow, text="Preprocess 10", command=lambda: taxonomychecker(10))
     pre20 = ttk.Button(preprocesswindow, text="Preprocess 20", command=lambda: taxonomychecker(20))
     pre50 = ttk.Button(preprocesswindow, text="Preprocess 50", command=lambda: taxonomychecker(50))
@@ -1487,22 +1474,22 @@ def taxupdate(advorgoback):
 # skip to the required assessment
 def skiptofunction():
     global databasera
-    goback.config(state='normal')
-    goforward.config(state='normal')
 
     # get the number to skip to
     numbertoskipto = (skipto.get() - 1)
     skipto.set("")
-    # save the current data
-    reviewsave()
-    # refresh the page by clicking the SIS logo
-    driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel").click()
+
     # check to make sure that you don't go out of bounds (i.e. can't go below 2 or above max length of list)
     if numbertoskipto < 0 or numbertoskipto > len(databasera):
         return 0
     # if valid then change the tracker for use in the function
     rownumber = numbertoskipto
     tablerownumber.set(numbertoskipto)
+
+    # save the current data
+    reviewsave()
+    # refresh the page by clicking the SIS logo
+    driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel").click()
 
     # Get the current species genus and name from the table and species ID
     output = databasera.iat[rownumber, 1]
@@ -1517,29 +1504,19 @@ def skiptofunction():
     if rownumber - 1 < 0:
         previousspeciesoutput = ""
         previousspeciesoutput2 = ""
-
-        nextspeciesoutput = databasera.iat[rownumber + 1, 1]
-        nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
         goback.config(state='disabled')
-
-    elif rownumber + 1 >= len(databasera):
-        previousspeciesoutput = databasera.iat[rownumber - 1, 1]
-        previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
-
-        nextspeciesoutput = ""
-        nextspeciesoutput2 = ""
-
-        goforward.config(state='disabled')
-
     else:
         previousspeciesoutput = databasera.iat[rownumber - 1, 1]
         previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
+        goback.config(state='normal')
 
+    if rownumber + 1 >= len(databasera):
+        nextspeciesoutput = ""
+        nextspeciesoutput2 = ""
+        goforward.config(state='disabled')
+    else:
         nextspeciesoutput = databasera.iat[rownumber + 1, 1]
         nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
-
-        goback.config(state='normal')
         goforward.config(state='normal')
 
     # then set the value of the external rowtracker to the new value
@@ -1811,7 +1788,7 @@ def checkfield(shapefiletotest, attributetoinspect):
         try:
             firstvalue = (shapefiletotest['CITATION'][0])
             for crow, cvalue in enumerate(shapefiletotest['CITATION']):
-                if cvalue == "" or cvalue != firstvalue or cvalue == "text":
+                if cvalue == "" or cvalue != firstvalue or cvalue == "text" or cvalue == None:
                     citationerrors.append(['CITATION', crow])
             return citationerrors
         except:
@@ -1946,7 +1923,7 @@ def checkfieldpoints(shapefiletotest, attributetoinspect):
         try:
             firstvalue = (shapefiletotest['Citation'][0])
             for crow, cvalue in enumerate(shapefiletotest['Citation']):
-                if cvalue == "" or cvalue != firstvalue or cvalue == "text":
+                if cvalue == "" or cvalue != firstvalue or cvalue == "text" or cvalue == None:
                     citationerrors.append(['Citation', crow])
             return citationerrors
         except:
@@ -1979,7 +1956,7 @@ def checkfieldpoints(shapefiletotest, attributetoinspect):
                     eventyearerrors.append(['Event_Year', eyrow])
             return eventyearerrors
         except:
-            eventyearerrors.append(['Event Year Error'])
+            eventyearerrors.append(['Event_Year Error'])
             return eventyearerrors
 
     elif attributetoinspect == "SpatialRef":
@@ -2096,18 +2073,27 @@ def checkattributeorder(shapefiletotest, pointorpoly):
     return True
 
 # collates and writes to file the changes for the required attribute changes
-def commitchanges(correctorder, shapefiletofix, speciesname, freshwater):
+def commitchanges(correctorder, shapefiletofix, speciesname, freshwater, sourcefunction, extrafields):
     global fixattributesTL
 
     # create a list to store the changes that need to be made
     listofchanges = []
     internalcounter = 3
-    # collate the changes to be made list original to what it should be
-    for counter, combobox in enumerate(fixattributesTL.children.values()):
-        if 'combobox' in str(combobox):
-            if combobox.get() != "PRESENT" and combobox.get() != "Not Present":
-                listofchanges.append([correctorder[counter - internalcounter], combobox.get()])
-            internalcounter = internalcounter + 1
+
+    # if coming from the optional attributer fixer then need to swap the columns round
+    if sourcefunction == "optional":
+        for counter, combobox in enumerate(fixattributesTL.children.values()):
+            if 'combobox' in str(combobox):
+                if combobox.get() != "PRESENT" and combobox.get() != "Not Present":
+                    listofchanges.append([combobox.get(), extrafields[counter - internalcounter]])
+                internalcounter = internalcounter + 1
+    else:
+        # collate the changes to be made list original to what it should be
+        for counter, combobox in enumerate(fixattributesTL.children.values()):
+            if 'combobox' in str(combobox):
+                if combobox.get() != "PRESENT" and combobox.get() != "Not Present":
+                    listofchanges.append([correctorder[counter - internalcounter], combobox.get()])
+                internalcounter = internalcounter + 1
 
     # loop through the list of changes and add columns as necessary
     for x in listofchanges:
@@ -2186,8 +2172,8 @@ def fixrequiredattributes(shapefiletofix, freshwater, missingrequired, speciesna
             ttk.Label(fixattributesTL, text="%s" % y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x+1, sticky=NSEW)
             ttk.Combobox(fixattributesTL, values=listofattributes, state="readonly").grid(column=1, row=x+1, sticky=NSEW)
         else:
-            ttk.Label(fixattributesTL, text="%s" % y, borderwidth=3, relief="solid", background="#DFE8F6", foreground="#828282").grid(column=0, row=x+1, sticky=NSEW)
-            ttk.Combobox(fixattributesTL, state="disabled").grid(column=1, row=x+1, sticky=NSEW)
+            ttk.Label(fixattributesTL, text="%s" % y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x+1, sticky=NSEW)
+            ttk.Combobox(fixattributesTL, state="disabled", values=listofattributes).grid(column=1, row=x+1, sticky=NSEW)
 
     # run through and for all blank ones write as PRESENT
     # collate the changes to be made list original to what it should be
@@ -2195,11 +2181,12 @@ def fixrequiredattributes(shapefiletofix, freshwater, missingrequired, speciesna
         if 'combobox' in str(combobox):
             if combobox.instate([DISABLED, ]):
                 combobox.set("PRESENT")
+                combobox.config(state="readonly")
             else:
                 combobox.set("Add as a new variable")
 
     # finally add the commit button to the bottom
-    ttk.Button(fixattributesTL, text="Commit Changes", command=lambda: commitchanges(correctorder, shapefiletofix, speciesname, freshwater)).grid(column=1, row=20, sticky=NSEW, columnspan=2)
+    ttk.Button(fixattributesTL, text="Commit Changes", command=lambda: commitchanges(correctorder, shapefiletofix, speciesname, freshwater, "normal", None)).grid(column=1, row=20, sticky=NSEW, columnspan=2)
     # status of each one can either be present, or a drop down menu with the full list of attributes remaining or an add button
     # at the end it deletes the current map and reopens the new one
 
@@ -2232,32 +2219,29 @@ def fixoptionalattributes(shapefiletofix, freshwater, extrafields, speciesname, 
     fixattributesTL.geometry('%dx%d+%d+%d' % (500, 500, x/2 - 250, y/2 - 250))
 
     # add Not present to the start of the list
-    extrafields.insert(0, "Not Present")
+    correctorder.insert(0, "Not Present")
 
     # Create the table headers
     ttk.Label(fixattributesTL, text="Optional Attribute", font=(None, 15, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=0, sticky=NSEW)
     ttk.Label(fixattributesTL, text="Status", font=(None, 15, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=0, sticky=NSEW)
     # run through the required attributes, if the attribute exists in the list of missing then flag the options up
-    for x, y in enumerate(correctorder):
+    for x, y in enumerate(extrafields):
         # if in the list of missing then create the label with the options
-        if y in extrafields:
+        if y in correctorder:
             ttk.Label(fixattributesTL, text="%s" % y, borderwidth=3, relief="solid", background="#DFE8F6", foreground="#828282").grid(column=0, row=x+1, sticky=NSEW)
             ttk.Combobox(fixattributesTL, state="disabled").grid(column=1, row=x+1, sticky=NSEW)
         else:
             ttk.Label(fixattributesTL, text="%s" % y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x+1, sticky=NSEW)
-            ttk.Combobox(fixattributesTL, values=extrafields, state="readonly").grid(column=1, row=x+1, sticky=NSEW)
+            ttk.Combobox(fixattributesTL, values=correctorder, state="readonly").grid(column=1, row=x+1, sticky=NSEW)
 
     # run through and for all blank ones write as PRESENT
     # collate the changes to be made list original to what it should be
     for counter, combobox in enumerate(fixattributesTL.children.values()):
         if 'combobox' in str(combobox):
-            if combobox.instate([DISABLED, ]):
-                combobox.set("PRESENT")
-            else:
-                combobox.set("Not Present")
+            combobox.set("Not Present")
 
     # finally add the commit button to the bottom
-    ttk.Button(fixattributesTL, text="Commit Changes", command=lambda: commitchanges(correctorder, shapefiletofix, speciesname, freshwater)).grid(column=1, row=20, sticky=NSEW, columnspan=2)
+    ttk.Button(fixattributesTL, text="Commit Changes", command=lambda: commitchanges(correctorder, shapefiletofix, speciesname, freshwater, "optional", extrafields)).grid(column=1, row=50, sticky=NSEW, columnspan=2)
     # status of each one can either be present, or a drop down menu with the full list of attributes remaining or an add button
     # at the end it deletes the current map and reopens the new one
 
@@ -2481,7 +2465,7 @@ def commitPOSchanges(errortable, shapefiletofix, freshwater, speciesname, field)
     maptests(speciesname, freshwater)
 
 # Gets edits made by the user for the POS text repairs and commits them to the shapefile
-def commitPOStextchanges(correctiontable, shapefiletofix, freshwater, speciesname):
+def commitPOStextchanges(correctiontable, shapefiletofix, freshwater, speciesname, fieldname, pointorpoly):
     global repairPOSfieldsTL
     # first take the error table, add a new column which is the corrected data
     counter = 0
@@ -2489,40 +2473,41 @@ def commitPOStextchanges(correctiontable, shapefiletofix, freshwater, speciesnam
         if 'combobox' in str(combobox):
             # test to see if any invalid codes provided, cancel if so
             if combobox.get() == "Invalid Code":
-                messagebox.showerror(title="Error Duck", message="Invalid Presence code provided please fix before committing")
+                messagebox.showerror(title="Error Duck", message="Invalid code provided please fix before committing")
                 return 0
             else:
                 # add the matched code
-                correctiontable[counter] = combobox.get()
+                correctiontable[list(correctiontable.items())[counter][0]] = int(combobox.get())
                 counter = counter + 1
 
-    print(correctiontable)
-
+    templist = []
     # loop through the corrections using the table to create a new column (of correct type)
-    #for x, y in enumerate(shapefiletofix):
-        # for each
-       # shapefiletofix.at["TEMP", x[0]] = x[1]
+    for x in shapefiletofix[fieldname]:
+        templist.append(correctiontable[x])
 
-    # rename column to correct type
+    # drop exisiting column
+    shapefiletofix.drop(fieldname, axis=1, inplace=True)
+    # add in column with the same name and correct values
+    shapefiletofix[fieldname] = pandas.Series(templist)
 
     # get the data from the designated location
-    #fp = locationofmaps.get()
+    fp = locationofmaps.get()
 
     # after all changes have occurred then save the file
-   # shapefiletofix.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+    shapefiletofix.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
 
     # destroy the toplevel
-    #repairPOSfieldsTL.destroy()
+    repairPOSfieldsTL.destroy()
 
     # create the new map
-    #rownumber = (tablerownumber.get())
-   # createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    rownumber = (tablerownumber.get())
+    createmap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
 
     # destroy the maptests level and rerun
-    #maptestslevel.destroy()
-    #repairPOSfieldsTL.destroy()
+    maptestslevel.destroy()
+    repairPOSfieldsTL.destroy()
     # instead of running the whole thing again, remember the f
-    #maptests(speciesname, freshwater)
+    maptests(speciesname, freshwater)
 
 # For the POS repair window, fills all rows with a number provided by the user
 def fillallPOS(value, attribute):
@@ -2665,16 +2650,14 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
             labels[i][2].grid(column=2, row=i, sticky=NSEW)
 
     elif field == "seasonal":
-        # run through the error table, create a new row for each error
-        for x, y in enumerate(errortable):
-            # get the current code for this row
-            for i in range(0, rows):
-                labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
-                labels[i][0].grid(column=0, row=i, sticky=NSEW)
-                labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
-                labels[i][1].grid(column=1, row=i, sticky=NSEW)
-                labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=[1, 2, 3, 4, 5])
-                labels[i][2].grid(column=2, row=i, sticky=NSEW)
+        # get the current code for this row
+        for i in range(0, rows):
+            labels[i][0] = ttk.Label(label_frame, anchor="center", text="%s" % errortable[i][1], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][0].grid(column=0, row=i, sticky=NSEW)
+            labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
+            labels[i][1].grid(column=1, row=i, sticky=NSEW)
+            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=[1, 2, 3, 4, 5])
+            labels[i][2].grid(column=2, row=i, sticky=NSEW)
 
     elif field == "year":
         for i in range(0, rows):
@@ -2682,7 +2665,7 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
             labels[i][0].grid(column=0, row=i, sticky=NSEW)
             labels[i][1] = ttk.Label(label_frame, anchor="center", text="%s" % shapefiletofix[errortable[i][0]][errortable[i][1]], borderwidth=3, relief="flat", background="#DFE8F6", width=18)
             labels[i][1].grid(column=1, row=i, sticky=NSEW)
-            labels[i][2] = ttk.Combobox(label_frame, state="readonly", values=["%s" % int(time.strftime("%Y"))])
+            labels[i][2] = ttk.Combobox(label_frame, state="normal", values=["%s" % int(time.strftime("%Y"))])
             labels[i][2].grid(column=2, row=i, sticky=NSEW)
 
     elif field == "compiler":
@@ -2729,7 +2712,6 @@ def repairPOSfields(shapefiletofix, speciesname, freshwater, errortable, field):
     # Set the canvas scrolling region
     canvas.config(scrollregion=canvas.bbox("all"))
 
-
 # Convert text field to numeric, giving the user manual input to change the fields
 def convertandrepairtextPOSfields(shapefiletofix, speciesname, freshwater, errortable, field, pointorpoly):
     global repairPOSfieldsTL
@@ -2750,11 +2732,11 @@ def convertandrepairtextPOSfields(shapefiletofix, speciesname, freshwater, error
     ttk.Label(repairPOSfieldsTL, text="New Value", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=1, sticky=NSEW)
 
     # create the list to hold correction map
-    uniquetable = {}
+    uniquetable = collections.OrderedDict()
     counter = 0
 
     if pointorpoly == "polygon":
-        if field == "presence":
+        if field == "PRESENCE":
             # run through the shapefile and pick out unique values
             for x, y in enumerate(shapefiletofix["PRESENCE"]):
                 if y not in uniquetable:
@@ -2765,46 +2747,136 @@ def convertandrepairtextPOSfields(shapefiletofix, speciesname, freshwater, error
                 # get the current code for this row
                 # if in the list of missing then create the label with the options
                 ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "ORIGIN":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["ORIGIN"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
                 ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
-        elif field == "origin":
+        elif field == "SEASONAL":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["SEASONAL"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
             # run through the error table, create a new row for each error
-            for x, y in enumerate(errortable):
+            for x, y in enumerate(uniquetable):
                 # get the current code for this row
                 # if in the list of missing then create the label with the options
-                ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-                ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 3, 4, 5, 6]).grid(column=2, row=x + 2, sticky=NSEW)
-        elif field == "seasonal":
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "YEAR":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["YEAR"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
             # run through the error table, create a new row for each error
-            for x, y in enumerate(errortable):
+            for x, y in enumerate(uniquetable):
                 # get the current code for this row
                 # if in the list of missing then create the label with the options
-                ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-                ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5]).grid(column=2, row=x + 2, sticky=NSEW)
-        elif field == "year":
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "ID_NO":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["ID_NO"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
             # run through the error table, create a new row for each error
-            for x, y in enumerate(errortable):
+            for x, y in enumerate(uniquetable):
                 # get the current code for this row
                 # if in the list of missing then create the label with the options
-                ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-                ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-                ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=2, row=x + 2, sticky=NSEW)
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[0]).grid(column=1, row=x + 2, sticky=NSEW)
         else:
+            pass
+    # points version
+    else:
+        if field == "Presence":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["Presence"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
             # run through the error table, create a new row for each error
-            for x, y in enumerate(errortable):
+            for x, y in enumerate(uniquetable):
                 # get the current code for this row
                 # if in the list of missing then create the label with the options
-                ttk.Label(repairPOSfieldsTL, anchor="center", text="%s" % errortable[x][1], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
-                ttk.Label(repairPOSfieldsTL, anchor="center", text=shapefiletofix[errortable[x][0]][errortable[x][1]], borderwidth=3, relief="solid", background="#DFE8F6").grid(column=1, row=x + 2, sticky=NSEW)
-                ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % shapefiletofix[errortable[x][0]][errortable[x][1]]]).grid(column=2, row=x + 2, sticky=NSEW)
-
-    else:
-        pass
-
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "Origin":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["Origin"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "Seasonal":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["Seasonal"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[1, 2, 3, 4, 5, 6]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "Year":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["Year"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "Event_Year":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["Event_Year"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="normal", values=["%s" % int(time.strftime("%Y"))]).grid(column=1, row=x + 2, sticky=NSEW)
+        elif field == "TaxonID":
+            # run through the shapefile and pick out unique values
+            for x, y in enumerate(shapefiletofix["TaxonID"]):
+                if y not in uniquetable:
+                    uniquetable[y] = counter
+                    counter = counter + 1
+            # run through the error table, create a new row for each error
+            for x, y in enumerate(uniquetable):
+                # get the current code for this row
+                # if in the list of missing then create the label with the options
+                ttk.Label(repairPOSfieldsTL, anchor="center", text=y, borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=x + 2, sticky=NSEW)
+                ttk.Combobox(repairPOSfieldsTL, state="readonly", values=[0]).grid(column=1, row=x + 2, sticky=NSEW)
+        else:
+            pass
 
     # finally add the commit button to the bottom
-    ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOStextchanges(uniquetable, shapefiletofix, freshwater, speciesname)).grid(column=2, row=20, sticky=NSEW)
+    ttk.Button(repairPOSfieldsTL, text="Commit Changes", command=lambda: commitPOStextchanges(uniquetable, shapefiletofix, freshwater, speciesname, field, pointorpoly)).grid(column=2, row=20, sticky=NSEW)
 
     # Add a fill all button
     test = ttk.Entry(repairPOSfieldsTL)
@@ -2953,13 +3025,13 @@ def maptests(speciesname, freshwater):
     # read shapefile from file
     data = geopandas.read_file(fp, driver='ESRI Shapefile', layer=speciesname)
 
-    # check to see if backupfolder exists if not then create it
-    if os.path.isdir("%s/backups" % fp) == False:
-        os.makedirs("%s/backups" % fp)
+    # check to see if shapefilespreediting exists if not then create it
+    if os.path.isdir("%s/shapefilespreediting" % fp) == False:
+        os.makedirs("%s/shapefilespreediting" % fp)
 
     # if the file doesn't exist in backups then create a backup
-    if os.path.exists("%s/backups/%s.shp" % (fp, speciesname)) == False:
-        data.to_file("%s/backups/" % fp, driver='ESRI Shapefile', layer=speciesname)
+    if os.path.exists("%s/shapefilespreediting/%s.shp" % (fp, speciesname)) == False:
+        data.to_file("%s/shapefilespreediting/" % fp, driver='ESRI Shapefile', layer=speciesname)
 
     # test to see if polygon or point tests are required
     # once data has loaded determine whether it is polygon or point
@@ -3015,7 +3087,7 @@ def maptests(speciesname, freshwater):
                 rowcounterpoly = rowcounterpoly + 1
             elif SISerrors[0][0] == "SISID Text Error":
                 ttk.Label(maptestslevel, text="SIS ID attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounterpoly, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, SISerrors, "ID_NO", "point")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
                 ttk.Label(maptestslevel, text="ID_NO attribute doesn't match SIS ID", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
@@ -3043,7 +3115,7 @@ def maptests(speciesname, freshwater):
                 rowcounterpoly = rowcounterpoly + 1
             elif perrors[0][0] == "Presence Text Error":
                 ttk.Label(maptestslevel, text="Presence attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, perrors, "presence", "polygon")).grid(row=rowcounterpoly, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, perrors, "PRESENCE", "polygon")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
                 ttk.Label(maptestslevel, text="Presence code error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
@@ -3059,7 +3131,7 @@ def maptests(speciesname, freshwater):
                 rowcounterpoly = rowcounterpoly + 1
             elif oerrors[0][0] == "Origin Text Error":
                 ttk.Label(maptestslevel, text="Origin attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounterpoly, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, oerrors, "ORIGIN", "polygon")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
                 ttk.Label(maptestslevel, text="Origin code error detected", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
@@ -3075,7 +3147,7 @@ def maptests(speciesname, freshwater):
                 rowcounterpoly = rowcounterpoly + 1
             elif serrors[0][0] == "Seasonal Text Error":
                 ttk.Label(maptestslevel, text="Seasonal attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounterpoly, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, serrors, "SEASONAL", "polygon")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
                 ttk.Label(maptestslevel, text="Seasonal code error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
@@ -3116,7 +3188,7 @@ def maptests(speciesname, freshwater):
                 rowcounterpoly = rowcounterpoly + 1
             elif yerrors[0][0] == "Year Text Error":
                 ttk.Label(maptestslevel, text="Year attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounterpoly, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, yerrors, "YEAR", "polygon")).grid(row=rowcounterpoly, column=1)
                 rowcounterpoly = rowcounterpoly + 1
             else:
                 ttk.Label(maptestslevel, text="Year attribute error detected", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounterpoly, column=0, sticky=NSEW)
@@ -3175,6 +3247,13 @@ def maptests(speciesname, freshwater):
             ttk.Label(maptestslevel, text="Required attribute fields are missing", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
             ttk.Button(maptestslevel, text="Fix", command=lambda: fixrequiredattributes(data, "False", checkpoint[0], speciesname, "point")).grid(row=rowcounter, column=1)
             rowcounter = rowcounter + 1
+
+        # if extra fields present these could be misspelt optional fields
+        if len(checkpoint[1]) > 0:
+            ttk.Label(maptestslevel, text="Potential misspelt optional fields present", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
+            ttk.Button(maptestslevel, text="Fix", command=lambda: fixoptionalattributes(data, freshwater, checkpoint[1], speciesname, "Point")).grid(row=rowcounter, column=1)
+            rowcounter = rowcounter + 1
+
         # check to see if any optional variables are present, if any non valid attributes then flag this error
         if len(checkpoint[1]) > 0:
             ttk.Label(maptestslevel, text="Non required/optional attributes present", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3189,8 +3268,8 @@ def maptests(speciesname, freshwater):
                 ttk.Label(maptestslevel, text="Field Required", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=1, sticky=NSEW)
                 rowcounter = rowcounter + 1
             elif SISerrors[0][0] == "SISID Text Error":
-                ttk.Label(maptestslevel, text="ID_NO attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Label(maptestslevel, text="TaxonID attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, SISerrors, "TaxonID", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="ID_NO attribute doesn't match SIS ID", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3218,7 +3297,7 @@ def maptests(speciesname, freshwater):
                 rowcounter = rowcounter + 1
             elif perrors[0][0] == "Presence Text Error":
                 ttk.Label(maptestslevel, text="Presence attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, perrors, "Presence", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="Presence code error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3234,7 +3313,7 @@ def maptests(speciesname, freshwater):
                 rowcounter = rowcounter + 1
             elif oerrors[0][0] == "Origin Text Error":
                 ttk.Label(maptestslevel, text="Origin attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, oerrors, "Origin", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="Origin code error detected", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3250,7 +3329,7 @@ def maptests(speciesname, freshwater):
                 rowcounter = rowcounter + 1
             elif serrors[0][0] == "Seasonal Text Error":
                 ttk.Label(maptestslevel, text="Seasonal attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, serrors, "Seasonal", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="Seasonal code error detected", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3278,7 +3357,7 @@ def maptests(speciesname, freshwater):
                 rowcounter = rowcounter + 1
             elif yerrors[0][0] == "Year Text Error":
                 ttk.Label(maptestslevel, text="Year attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, yerrors, "Year", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="Year attribute error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3300,13 +3379,13 @@ def maptests(speciesname, freshwater):
         # check to see if any errors that have been detected in the Event_Year column
         eyerrors = checkfieldpoints(data, 'Event Year')
         if len(eyerrors) > 0:
-            if eyerrors[0][0] == "Event Year Error":
+            if eyerrors[0][0] == "Event_Year Error":
                 ttk.Label(maptestslevel, text="Event Year attribute absent or mispelled", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
                 ttk.Label(maptestslevel, text="Field Required", background="#DFE8F6", borderwidth=3,relief="solid").grid(row=rowcounter, column=1, sticky=NSEW)
                 rowcounter = rowcounter + 1
-            elif eyerrors[0][0] == "Event Year Text Error":
+            elif eyerrors[0][0] == "Event_Year Text Error":
                 ttk.Label(maptestslevel, text="Event Year attribute is a text field", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
-                ttk.Button(maptestslevel, text="Fix").grid(row=rowcounter, column=1)
+                ttk.Button(maptestslevel, text="Fix", command=lambda: convertandrepairtextPOSfields(data, speciesname, freshwater, eyerrors, "Event_Year", "point")).grid(row=rowcounter, column=1)
                 rowcounter = rowcounter + 1
             else:
                 ttk.Label(maptestslevel, text="Event_Year error detected", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -3386,6 +3465,7 @@ def mapengineswitch():
         # create map for species, overwrite if already there
         if (createmap("%s_%s" % (output, output2))) == 0:
             messagebox.showerror(title="Mysterious Rubber Duck", message="No map for this species could be found")
+            mapenginetext.set("Stop Maps")
             return 0
         # create the map driver itself
         webbrowser.open("%s\\SpatialDataStore\\%s_%s.html" % (filedir, output, output2), new=0)
@@ -3526,7 +3606,7 @@ def generatetemplate():
     except:
         messagebox.showerror("Lesser Stripied Flying Llama", "Template has not been generated because of some error")
 
-# event handler for when the user choses the assessment they want to go to.
+# event handler for when the user chooses the assessment they want to go to.
 def gotooption(event):
     global dspchoice
     driver.implicitly_wait(2)
@@ -3562,12 +3642,315 @@ def calculateeoobymcp(shapefile, pointorpoly):
             return "{} km²".format(float(round(mcp.area/10**6, 2)))
         except:
             return "EOO Couldn't be calculated"
+    else:
+        try:
+            # define the equal area projection
+            equalarea = {'proj': 'cea', 'lon_0': 0, 'lat_ts': 0, 'x_0': 0, 'y_0': 0, 'datum': 'WGS84', 'units': 'm', 'no_defs': True}
+
+            # get the number of polygons
+            nrofpoly = len(shapefile)
+
+            # go through and drop any polygons that don't have PRESENCE 1
+            for x in range(0, nrofpoly):
+                if shapefile.loc[x, "Presence"] != 1:
+                    shapefile.drop(x, axis=0, inplace=True)
+
+            # calculate and report the area of the polygon
+            rawdatatransform = shapefile.to_crs(equalarea)
+
+            final = rawdatatransform.dissolve(by="Presence")
+
+            mcp = final.convex_hull
+
+            return "{} km²".format(float(round(mcp.area/10**6, 2)))
+        except:
+            return "EOO Couldn't be calculated"
+
+# reads in a geocat file and converts into a ESRI shapefile
+def convertGEOCAT(geocatfile):
+    # the list of attributes to be searched
+    attributestosearchfor = ["coordinateUncertaintyInMeters", "collector", "eventDate", "occurrenceRemarks", "latitude", "longitude", "collectionCode", "catalogNumber", "basisOfRecord", "country", "presence", "scientificName", "locality", "seasonal", "origin", "occurrenceDetails", "data_sens", "sens_comm", "compiler", "yrcompiled", "verbatimElevation"]
+
+    # create a blank pandas data frame with the correct column names
+    pointsdata = pandas.DataFrame(columns=["TaxonID"])
+    pointsdata["TaxonID"] = 0
+    # open the geopandas dataframe
+    opentemp = open(geocatfile, "r", encoding='UTF-8')
+
+    # read them into memory
+    contents = opentemp.read()
+
+    # get read of the head information only interested in information after the "points" section
+    # try to split on analysis (if they have used geocat to calcuate AOO/EOO)
+    try:
+        stepone = contents.split(sep="analysis")[0]
+    except:
+        stepone = contents
+
+    # user points are stored separatly to the GBIF points
+    sourcelist = stepone.split(sep="points")
+    # delete the header
+    del sourcelist[0]
+
+    # if the length of the list is 1, then just user information has been provided, greater than one means that GBIF data etc is included
+    for source in sourcelist:
+        # split the points section into data for each point (searching for everything between { and }
+        individualspoints = re.findall('{(.+?)}', source)
+        # for each point
+        for x in individualspoints:
+            key = []
+            value = []
+            # try and find each attribute, if found then add the key and value to the key or value libary
+            for variable in attributestosearchfor:
+                if variable == "coordinateUncertaintyInMeters":
+                    try:
+                        temp = re.search('coordinateUncertaintyInMeters":(.+?),', x).group(1)
+                        if temp == "\"\"":
+                            value.append(None)
+                        else:
+                            value.append(temp.strip("\""))
+                        key.append("coordinateUncertaintyInMeters")
+                    except AttributeError:
+                        pass
+                else:
+                    try:
+                        temp = re.search('%s":(.+?),' % variable, x).group(1)
+                        if temp == "\"\"":
+                            value.append(None)
+                        else:
+                            value.append(temp.strip("\""))
+                        key.append(variable)
+                    except AttributeError:
+                        pass
+
+            dictionary = dict(zip(key, value))
+
+            # create a series from the dictionary
+            tempdata = pandas.Series(dictionary)
+
+            pointsdata = pointsdata.append(tempdata, ignore_index=True)
+
+    # wiperth the data in a dataframe format, now do the first stage rough tidying up of data
+    # create the dictionary to map geocat attributes to IUCN standards
+    conversiondictionary = {"coordinateUncertaintyInMeters": "coordUncert", "collector": "recordedBy", "eventDate": "Event_Year", "latitude": "Dec_Lat", "longitude": "Dec_Long", "collectionCode": "collectID", "catalogNumber": "CatalogNo", "basisOfRecord": "BasisOfRec", "country": "countryCode", "presence": "Presence", "scientificName": "Binomial", "seasonal": "Seasonal", "origin": "Origin", "occurrenceDetails": "Source", "data_sens": "Data_sens", "sens_comm": "Sens_comm", "compiler": "Compiler", "yrcompiled": "Year"}
+    presencemap = {"Extant": 1, "Probably Extant": 2, "Possibly Extant": 3, "Possibly Extinct": 4, "Extinct": 5, "Presence Uncertain": 6}
+    originmap = {"Native": 1, "Reintroduced": 2, "Introduced": 3, "Vagrant": 4, "Origin Uncertain": 5, "Assisted Colonisation": 6}
+    seasonalmap = {"Resident": 1, "Breeding Season": 2, "Non-breeding Season": 3, "Passage": 4, "Seasonal Occurrence Uncertain": 5}
+
+    # run through and map the geocat variables to the IUCN point standards
+    for x in pointsdata:
+        try:
+            if x in ("latitude", "longitude"):
+                pointsdata[conversiondictionary[x]] = pointsdata[x].astype('float64')
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x in ("TaxonID", "coordUncer"):
+                pointsdata[conversiondictionary[x]] = pointsdata[x].astype('int64')
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x == "presence":
+                for row, y in enumerate(pointsdata["presence"]):
+                    try:
+                        pointsdata.at[row, "Presence"] = int(presencemap[y])
+                    except:
+                        pointsdata.at[row, "Presence"] = 0
+                pointsdata["Presence"] = pointsdata["Presence"].astype("int32")
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x == "origin":
+                for row, y in enumerate(pointsdata["origin"]):
+                    try:
+                        pointsdata.at[row, "Origin"] = int(originmap[y])
+                    except:
+                        pointsdata.at[row, "Origin"] = 0
+                pointsdata["Origin"] = pointsdata["Origin"].astype("int32")
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x == "seasonal":
+                for row, y in enumerate(pointsdata["seasonal"]):
+                    try:
+                        pointsdata.at[row, "Seasonal"] = int(seasonalmap[y])
+                    except:
+                        pointsdata.at[row, "Seasonal"] = 0
+                pointsdata["Seasonal"] = pointsdata["Seasonal"].astype("int32")
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x in ("occurrenceRemarks", "catalogue_id", "institutionCode", "collectorNumber", "stateProvince", "county", "interpretedFrom", "identifiedBy"):
+                pointsdata.drop(x, axis=1, inplace=True)
+            elif x in "verbatimElevation":
+                pointsdata["maxElev"] = pointsdata[x]
+                pointsdata["minElev"] = pointsdata[x]
+                pointsdata.drop(x, axis=1, inplace=True)
+            else:
+                pointsdata[conversiondictionary[x]] = pointsdata[x]
+                pointsdata.drop(x, axis=1, inplace=True)
+        except:
+            pass
+
+    # convert from pandas into geopandas format
+    geometry = [Point(xy) for xy in zip(pointsdata.Dec_Long, pointsdata.Dec_Lat)]
+    crs = {'init': 'epsg:4326'}
+    gdf = GeoDataFrame(pointsdata, crs=crs, geometry=geometry)
+
+    return gdf
+
+# change the CSV columns to the correct names and then convert to geopandas
+def inportandcovert(csvfile, speciesname):
+    # create dictionary to store all conversions
+    try:
+        conversiontable = []
+        for counter, combobox in enumerate(CSVdetails.children.values()):
+            if 'combobox' in str(combobox):
+                conversiontable.append(combobox.get())
+
+        # test to see if any are Not Present
+        if conversiontable[0] == "Not Present":
+            messagebox.showerror(title="Devil Llama with Horns", message="No Dec_Lat column defined, define to continue")
+        if conversiontable[1] == "Not Present":
+            messagebox.showerror(title="Devil Llama with Long Horns", message="No Dec_Long column defined, define to continue")
+        if conversiontable[2] == "Not Present":
+            messagebox.showerror(title="Devil Llama in disguise", message="No CRS definined, creating and defaulting to WGS84")
+            csvfile["SpatialRef"] = "WGS84"
+            conversiontable[2] = "SpatialRef"
+
+        # if already corect then don't rename column
+        if conversiontable[0] != "Dec_Lat":
+            csvfile["Dec_Lat"] = csvfile[conversiontable[0]]
+            csvfile.drop("%s" % conversiontable[0], axis=1, inplace=True)
+        if conversiontable[1] != "Dec_Long":
+            csvfile["Dec_Long"] = csvfile[conversiontable[1]]
+            csvfile.drop("%s" % conversiontable[1], axis=1, inplace=True)
+        if conversiontable[2] != "SpatialRef":
+            csvfile["SpatialRef"] = csvfile[conversiontable[2]]
+            csvfile.drop("%s" % conversiontable[2], axis=1, inplace=True)
+
+        # look into the CRS, if not WGS84 raise box asking for what the EPSG code is
+        if csvfile["SpatialRef"][0] == "WGS84" or csvfile["SpatialRef"][0] == "WGS 84":
+            crs = {'init': 'epsg:4326'}
+        else:
+            crsdefine = simpledialog.askstring("CRS Define", "Four digit EPSG code required type CRS into (http://epsg.io/)")
+            crs = {'init': 'epsg:%s' % crsdefine}
+
+        # check the POS columns to make sure valid input,
+
+        geometry = [Point(xy) for xy in zip(csvfile.Dec_Long, csvfile.Dec_Lat)]
+        crs = {'init': 'epsg:4326'}
+        gdf = GeoDataFrame(csvfile, crs=crs, geometry=geometry)
+
+        # if crs is not WGS 84 then convert the points
+        if crs != "{'init': 'epsg:4326'}":
+            print("Data supplied is not in WGS84 reprojecting...")
+            gdf = gdf.to_crs({'init': 'epsg:4326'})
+
+        # save to file
+        fp = locationofmaps.get()
+        # save to main working folder
+        gdf.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+        # save to preedits folder
+        gdf.to_file("%s/shapefilespreediting/" % fp, driver='ESRI Shapefile', layer=speciesname)
+        # move original file to originals folder
+        os.rename("%s/%s.csv" % (fp,speciesname), "%s/originalfiles/%s.csv" % (fp, speciesname))
+
+        # destroy topwindow
+        CSVdetails.destroy()
+    except:
+        print("Error in convering CSV to ESRI feature class")
+        messagebox.showerror(title="Two toned llama", message="Error in CSV to feature class conversion")
+        return 1
+
+# reads in csv file and coverts into a ESRI shapefile
+def convertCSV(csvfile, speciesname):
+    global CSVdetails
+
+    # create the outline of the toplevel
+    CSVdetails = Toplevel()
+    CSVdetails.config(background="#DFE8F6")
+    # position of parent window
+    x = root.winfo_screenwidth()
+    y = root.winfo_screenheight()
+
+    CSVdetails.geometry('%dx%d+%d+%d' % (500, 500, x / 2 - 250, y / 2 - 250))
+
+    # create TopLevel labels
+    ttk.Label(CSVdetails, text="CSV Import", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6", anchor=N).grid(column=0, row=0, columnspan=3, sticky=NSEW)
+    ttk.Label(CSVdetails, text="Pick Dec_Lat (Y) Column", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=1, columnspan=3, sticky=EW)
+    ttk.Label(CSVdetails, text="Pick Dec_Long (X) Column", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=3, columnspan=3, sticky=EW)
+    ttk.Label(CSVdetails, text="Pick SpatialRef (if None will assume WGS84)", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=5, columnspan=3, sticky=EW)
+
+    # load in the csv into a pandas dataframe
+    pandascsvdf = pandas.read_csv(csvfile, encoding='ISO-8859-1')
+    # run through and get all headers
+    attributenames = []
+    attributenames.append("Not Present")
+    for x in pandascsvdf:
+        attributenames.append(x)
+
+    # present them to user and ask which is the long, lat and CRS column
+    Latitude = ttk.Combobox(CSVdetails, state="readonly", values=attributenames)
+    Longitude = ttk.Combobox(CSVdetails, state="readonly", values=attributenames)
+    CRS = ttk.Combobox(CSVdetails, state="readonly", values=attributenames)
+
+    Latitude.grid(column=0, row=2, columnspan=3, sticky=NSEW)
+    Longitude.grid(column=0, row=4, columnspan=3, sticky=NSEW)
+    CRS.grid(column=0, row=6, columnspan=3, sticky=NSEW)
+
+    # smart search
+    # lat Search
+    if "Dec_Lat" in attributenames:
+        Latitude.set("Dec_Lat")
+    elif "Latitude" in attributenames:
+        Latitude.set("Latitude")
+
+    # long search
+    if "Dec_Long" in attributenames:
+        Longitude.set("Dec_Long")
+    elif "Longitude" in attributenames:
+        Longitude.set("Longitude")
+
+    # crs search
+    if "SpatialRef" in attributenames:
+        CRS.set("SpatialRef")
+    elif "CRS" in attributenames:
+        CRS.set("CRS")
+
+    # Import button (this will trigger the columns to be renamed and will transform the pandas into a geopandas dataframe
+    ttk.Button(CSVdetails, text="Import", command=lambda: inportandcovert(pandascsvdf, speciesname)).grid(column=1, row=7, sticky=NSEW)
+
+    # give weight to everything to fill it out
+    CSVdetails.columnconfigure((0, 1, 2), weight=1)
+    CSVdetails.rowconfigure((0, 1, 2, 3, 4, 5, 6, 7), weight=1)
+
+    CSVdetails.wait_window()
+
 # function to create the map for the current species
 def createmap(speciesname):
     global filedir
 
     # get the location of the maps from the global variable
     fp = locationofmaps.get()
+
+    # first test to see if shapefile for this species exists if not then word down the list
+    # create all the supported versions of the file
+    shapefiletest = "%s/%s.shp" % (fp, speciesname)
+    geocattestfile = "%s/%s.geocat" % (fp, speciesname)
+    csvtestfile = "%s/%s.csv" % (fp, speciesname)
+
+    # check to see if backupfolder exists if not then create it
+    if os.path.isdir("%s/originalfiles" % fp) == False:
+        os.makedirs("%s/originalfiles" % fp)
+
+    if os.path.isfile(shapefiletest):
+        print("Shapefile detected")
+
+    # if shapefile doesn't exist then try to look for a geocat
+    elif os.path.isfile(geocattestfile):
+        print("Geocat file detected")
+        tempdata = convertGEOCAT(geocattestfile)
+        os.rename(geocattestfile, "%s/originalfiles/%s.geocat" % (fp, speciesname))
+        tempdata.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
+        tempdata.to_file("%s/shapefilespreediting/" % fp, driver='ESRI Shapefile', layer=speciesname)
+        # move the original file to the original files folder
+
+        # check to see if the original fi
+    elif os.path.isfile(csvtestfile):
+        print("CSV file detected")
+        convertCSV(csvtestfile, speciesname)
+
     # attempt to convert shapefile into geopandas database
     try:
         data = geopandas.read_file(fp, driver='ESRI Shapefile', layer=speciesname)
@@ -3575,7 +3958,7 @@ def createmap(speciesname):
     except:
         messagebox.showerror(title="Shiny Silver Llama", message="Shapefile for this species could not be found, please select manually")
         # open the file dialogue and ask user to find the correct file
-        newname = filedialog.askopenfilename(filetypes=[("Shapefile files", "*.shp")])
+        newname = filedialog.askopenfilename(filetypes=[("Shapefile files", "*.shp"),("Geocat files", "*.geocat"),("csv files", "*.csv"),("All files","*.*")])
         if newname == "":
             return 0
         # take the new name
@@ -3599,6 +3982,10 @@ def createmap(speciesname):
     bounds = data.total_bounds
     map.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
+    attributelist = []
+    for attributename in data:
+        attributelist.append(attributename)
+
     # with data in geopandas database now check to see if you have polygon or point data (as different methods)
     if data.geom_type[0] == "Polygon" or data.geom_type[0] == "MultiPolygon":
         print("Polygon Data")
@@ -3607,9 +3994,7 @@ def createmap(speciesname):
         jsondata = data.to_json()
         # screen data to ensure that the POS fields are in there correctly to allow styling on them to occur, if any aren't then map without style
         # create list of all attribues
-        attributelist = []
-        for attributename in data:
-            attributelist.append(attributename)
+
         # then test to see if all are in there
         if "PRESENCE" in attributelist and "ORIGIN" in attributelist and "SEASONAL" in attributelist:
             polygon = folium.features.GeoJson(jsondata, style_function=lambda feature: {'fillColor': '#ff0000' if feature['properties']['PRESENCE'] == 1 else '#ff9d00' if feature['properties']['PRESENCE'] == 2 else '#fffa00' if feature['properties']['PRESENCE'] == 3 else '#37ff00' if feature['properties']['PRESENCE'] == 4 else '#003fff' if feature['properties']['PRESENCE'] == 5 else '#e900ff', 'color': '#ff0000' if feature['properties']['ORIGIN'] == 1 else '#ff9d00' if feature['properties']['ORIGIN'] == 2 else '#fffa00' if feature['properties']['ORIGIN'] == 3 else '#37ff00' if feature['properties']['ORIGIN'] == 4 else '#003fff' if feature['properties']['ORIGIN'] == 5 else '#e900ff', 'fillOpacity': '0.6'})
@@ -3630,9 +4015,13 @@ def createmap(speciesname):
             temp3 = temp2.replace(")", "")
             xy = temp3.split(" ")
             # add to the map
-            try:
-                folium.Marker([float(xy[2]), float(xy[1])], icon=folium.Icon(color=presencestyledict[data["Presence"][x]], icon="cloud"), popup="P=%s, O=%s, S=%s\n" % (data["Presence"][x], data["Origin"][x], data["Seasonal"][x])).add_to(map)
-            except:
+            if "Presence" in attributelist and "Origin" in attributelist and "Seasonal" in attributelist:
+                try:
+                    folium.Marker([float(xy[2]), float(xy[1])], icon=folium.Icon(color=presencestyledict[data["Presence"][x]], icon="cloud"), popup="P=%s, O=%s, S=%s\n" % (data["Presence"][x], data["Origin"][x], data["Seasonal"][x])).add_to(map)
+                except:
+                    folium.Marker([float(xy[2]), float(xy[1])], icon=folium.Icon(color='white'), popup="Invalidily Named POS Fields").add_to(map)
+
+            else:
                 folium.Marker([float(xy[2]), float(xy[1])], icon=folium.Icon(color='white'), popup="Invalidily Named POS Fields").add_to(map)
 
     # convert the attribute table data for this species into a html table for this species
@@ -3664,6 +4053,21 @@ def createmap(speciesname):
                     finalfile.write("%s" % line2)
             if '<div class="EOOCMP">' in line:
                 finalfile.write("<p>EOO(MCP) = %s</p>" % MCP)
+
+    elif "Presence" in attributelist:
+        if data["Presence"].dtype != "int64" or data["Presence"].dtype != "int32":
+            MCP = calculateeoobymcp(data, "point")
+        # check that none are 0
+        for line in tableoutline:
+            finalfile.write(line)
+            if 'href=' in line:
+                finalfile.write("\"%s\">" % location)
+            if '<div class="fixed">' in line:
+                for line2 in tocopyin:
+                    finalfile.write("%s" % line2)
+            if '<div class="EOOCMP">' in line:
+                finalfile.write("<p>EOO(MCP) = %s</p>" % MCP)
+
     # else run through as usual
     else:
         # loop through the html and insert the created html text and the local location of the stylesheet
@@ -4339,7 +4743,7 @@ def copyname():
     root.update()
 
 # function to check for synonyms
-def synonymchecker(speciestocheck,level):
+def synonymchecker(speciestocheck, level):
     # go back to the homepage
     resetimage = driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel")
     driver.execute_script("arguments[0].click();", resetimage)
@@ -4662,7 +5066,7 @@ def UpdatePackages():
             print('Updating ' + str(i + 1) + ' of ' + str(n_packages) + ': ' + name)
             call('pip install --upgrade ' + name, shell=True)
 
-    # at the end reinstall the three troublesome files from dependencies
+    # at the end reinstall the three precompiled libaries files from dependencies
     # then install GDAL
     print("Install GDAL")
     subprocess.Popen('cmd.exe /C pip install %s/Dependencies/GDAL-2.2.4-cp37-cp37m-win32.whl' % filedir)
@@ -4854,6 +5258,7 @@ mapenginetext = StringVar()
 mapenginetext.set("Activate Maps")
 citationsession = []
 citationsession.append("None")
+citationsession.append("IUCN")
 
 # load and setup version number
 versionnumbertext = StringVar()
@@ -5344,6 +5749,11 @@ for child in optionsframe.winfo_children():
 import pandas
 import folium
 import geopandas
+from geopandas import GeoDataFrame
+from shapely.geometry import Point
+import shapely
+from shapely import speedups
+speedups.enable()
 import fiona
 
 # panda databases have to be loaded after pandas for the above workaround to work
