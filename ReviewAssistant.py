@@ -1,4 +1,4 @@
-# version 5.3
+# version 5.31
 
 # import the libaries needed
 from selenium import webdriver
@@ -1482,12 +1482,14 @@ def skiptofunction():
     # check to make sure that you don't go out of bounds (i.e. can't go below 2 or above max length of list)
     if numbertoskipto < 0 or numbertoskipto > len(databasera):
         return 0
+
+    # save the current data before making any changes
+    reviewsave()
+
     # if valid then change the tracker for use in the function
     rownumber = numbertoskipto
     tablerownumber.set(numbertoskipto)
 
-    # save the current data
-    reviewsave()
     # refresh the page by clicking the SIS logo
     driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel").click()
 
