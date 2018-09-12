@@ -1,4 +1,4 @@
-# version 5.31
+# version 5.4
 
 # import the libaries needed
 from selenium import webdriver
@@ -127,6 +127,7 @@ def login():
         taxadderframebutton.configure(state=NORMAL)
         singlereviewbutton.configure(state=DISABLED)
         simplesearchbutton.configure(state=NORMAL)
+        bulkconvertframebutton.configure(state=NORMAL)
 
     except NoSuchElementException:
         messagebox.showerror("Generic Error Llama", "Password or Username incorrect, please try again")
@@ -145,6 +146,7 @@ def logout():
     simplesearchbutton.configure(state=DISABLED)
     taxadderframebutton.configure(state=DISABLED)
     logoutbutton.configure(state=DISABLED)
+    bulkconvertframebutton.configure(state=DISABLED)
 
 # function to search for a species using ID
 def searchbyanything(value):
@@ -1844,7 +1846,7 @@ def checkfieldpoints(shapefiletotest, attributetoinspect):
         presenceerrors = []
         try:
             if shapefiletotest['Presence'].dtype == 'object':
-                presenceerrors.append(['SISID Text Error'])
+                presenceerrors.append(['Presence Text Error'])
                 return presenceerrors
             shapefiletotest['Presence'] = shapefiletotest['Presence'].astype('int32')
             for prow, pvalue in enumerate(shapefiletotest['Presence']):
@@ -3554,17 +3556,52 @@ def gotoreferences():
 
 # check to see if there is an assessment, if there is then offer to download it
 def checkanddownloadassessments():
+    global loggedin
+
+    # first check if logged in globally, if not then login in via the validate function
+    if loggedin == 0:
+        currenturl = driver.current_url
+        assessmentid = currenturl.split("A", 1)[1]
+        driver.execute_script("window.open('http://%s:%s@sis.iucnsis.org/apps/org.iucn.sis.server.extensions.integrity/validate?id=%s&type=submitted_status')" % (usernamevariable, passwordvariable, assessmentid))
+        driver.switch_to.window(driver.window_handles[1])
+        try:
+            element = WebDriverWait(driver, 20).until(
+                expected_conditions.presence_of_element_located(
+                    (By.XPATH, "//*[contains(text(), 'Click here to view')]")))
+        finally:
+            element.click()
+            driver.switch_to.window(driver.window_handles[1])
+            driver.close()
+            driver.switch_to.window(driver.window_handles[1])
+            driver.close()
+            driver.switch_to.window(driver.window_handles[0])
+            loggedin = 1
+
     driver.find_element_by_xpath("//*[contains(text(), 'Attachments')]").click()
     driver.find_element_by_xpath("//*[contains(text(), 'Manage Attachments')]").click()
+    driver.implicitly_wait(0.5)
 
-    #try:
+    try:
         # find and click the ok button
-        #driver.find_element_by_xpath("//*[contains(text(), 'There are no attachments for this assessment.')]").find_element_by_xpath("//*[contains(text(), 'OK')]").click()
-        #messagebox.showinfo("Never seen invisible mountain llama", "No Attachment found")
-    #except:
-        #llama = messagebox.askyesno(title="Light Footed Super Sneaky Llama", message="Attachment found, do you want to download it?", icon='question')
-        #print("%s" % llama)
-        #pass
+        driver.find_element_by_xpath("//*[contains(text(), 'There are no attachments for this assessment.')]").find_element_by_xpath("//*[contains(text(), 'OK')]").click()
+        messagebox.showinfo("Never seen invisible mountain llama", "No Attachment found")
+    except:
+        llama = messagebox.askyesno(title="Light Footed Super Sneaky Llama", message="Attachment found, do you want to download it?", icon='question')
+        listofdownloads = driver.find_elements_by_css_selector(".x-grid3-col.x-grid3-cell.x-grid3-td-publish")
+        listofparents = []
+        for x in listofdownloads:
+            listofparents.append(x.find_element_by_xpath(".."))
+
+        # for each row of the attachments file
+        for x in listofparents:
+            # check to see if the name contains a spatial data folder (testing for .geocat, .kml)
+            if ".geocat" in list(x.text.splitlines())[0] or ".kml" in list(x.text.splitlines())[0]:
+                print("Spatial File Found")
+                # bring focus to the row
+                x.click()
+                # press download (need to change the default download location to the correct folder)
+                driver.find_element_by_xpath("//*[contains(text(), 'Download')]").click()
+                # close the attachements window
 
 # generates an excel template for importing data
 def generatetemplate():
@@ -4144,6 +4181,7 @@ def validateassessment(buttontext):
     global passwordvariable
     global usernamevariable
     global validatebuttontext
+    global loggedin
 
     if (buttontext == "Validate"):
         # get the assessment id from the URL string
@@ -4161,6 +4199,7 @@ def validateassessment(buttontext):
             driver.close()
             driver.switch_to.window(driver.window_handles[1])
             validatebuttontext.set("Finish Validation")
+            loggedin = 1
 
     elif buttontext == "Finish Validation":
         driver.close()
@@ -5198,8 +5237,47 @@ def UpdateSISA():
     # close the current version
     quit()
 
+# lets the user set a folder and updates the screen to reflect the choices
+def choosefolder():
+    sourcefolder = filedialog.askdirectory()
+    folderforbulkconversion.set(sourcefolder)
+    foldertoplaceconverted.set("%s/convertedfiles" % sourcefolder)
+
+    # Run through provided folder and detect file types
+    listoffiletypes = {}
+    for x in os.listdir(sourcefolder):
+        listoffiletypes[str(os.path.splitext(x)[1]).replace(".","")] = 0
+
+    # get rid of '' which comes from folders
+    if '' in listoffiletypes:
+        del listoffiletypes['']
+
+    # Run through the list and place a 1 by all supported file types
+    supportedfiletypes = ["geocat", "csv"]
+    for type in supportedfiletypes:
+        if type in listoffiletypes:
+            listoffiletypes[type] = 1
+
+    # run through and create a string of accepted file types
+    acceptedfiletypes = ""
+    notacceptedfiletypes = ""
+    for key, value in listoffiletypes.items():
+        if value == 1:
+            acceptedfiletypes += str("%s, " % key)
+        else:
+            notacceptedfiletypes += str("%s, " % key)
+
+    acceptedvariablesfound.set(acceptedfiletypes)
+    notacceptedvaraiblesfound.set(notacceptedfiletypes)
+
+# runs through the provided folder, reads file type and attempts to convert to esri shapefile
+def bulkconvert(locations):
+    pass
+
+
 # GUI code
 # setup root
+
 root = Tk()
 root.title("SIS Assistant")
 root.resizable(width=TRUE, height=TRUE)
@@ -5261,6 +5339,11 @@ mapenginetext.set("Activate Maps")
 citationsession = []
 citationsession.append("None")
 citationsession.append("IUCN")
+loggedin = 0
+folderforbulkconversion = StringVar()
+foldertoplaceconverted = StringVar()
+acceptedvariablesfound = StringVar()
+notacceptedvaraiblesfound = StringVar()
 
 # load and setup version number
 versionnumbertext = StringVar()
@@ -5311,6 +5394,11 @@ taxadderframe.master.minsize(width=510, height=510)
 taxadderassistantframe = ttk.Frame(root, padding="0 0 0 0")
 taxadderassistantframe.grid(column=0, row=0, sticky=N+S+E+W)
 taxadderassistantframe.master.minsize(width=510, height=510)
+
+# bulkconvertframe
+bulkconvertframe = ttk.Frame(root, padding="0 0 0 0")
+bulkconvertframe.grid(column=0, row=0, sticky=N+S+E+W)
+bulkconvertframe.master.minsize(width=510, height=510)
 
 # main frame
 # main frame images
@@ -5368,6 +5456,8 @@ singlereviewbutton = ttk.Button(mainframe, text="Review This Species", command=l
 singlereviewbutton.grid(column=1, row=7, sticky=(N, S, W, E))
 simplesearchbutton = ttk.Button(mainframe, text="Review Assistant", command=reviewassistantmenuframe.tkraise, state=DISABLED)
 simplesearchbutton.grid(column=0, row=8, sticky=(N, S, W, E))
+bulkconvertframebutton = ttk.Button(mainframe, text="Bulk S.D Tools", command=bulkconvertframe.tkraise, state=DISABLED)
+bulkconvertframebutton.grid(column=1, row=8, sticky=(N, S, W, E))
 taxadderframebutton = ttk.Button(mainframe, text="Taxonomy Assistant", command=taxadderassistantframe.tkraise, state=DISABLED)
 taxadderframebutton.grid(column=0, row=9, sticky=(N, S, W, E))
 logoutbutton = ttk.Button(mainframe, text="Log Out", command=lambda: logout(), state=DISABLED)
@@ -5390,6 +5480,33 @@ ttk.Button(optionsframe, text="Return to main menu", command=mainframe.tkraise).
 
 optionsframe.columnconfigure((0, 1, 2), weight=1)
 optionsframe.rowconfigure((2, 3, 4, 5, 6, 7, 8, 9, 10, 11), weight=1)
+
+# bulkconvertframe
+# top bar and logo
+ttk.Label(bulkconvertframe, image=topbar, borderwidth=0).grid(column=0, row=0, sticky=EW)
+ttk.Label(bulkconvertframe, image=sislogo, borderwidth=0).grid(column=0, row=1, sticky=NW)
+
+# labels
+ttk.Label(bulkconvertframe, text="Bulk Spatial Data Conversion", font=(None, 15), background="#DFE8F6").grid(column=0, row=1, sticky=E)
+ttk.Label(bulkconvertframe, text="Please select folder containing the spatial data", background="#DFE8F6").grid(column=0, row=3, sticky=EW)
+ttk.Label(bulkconvertframe, text="Folder Selected", background="#DFE8F6", font=(None, 11)).grid(column=0, row=4, sticky=EW)
+ttk.Label(bulkconvertframe, textvariable=folderforbulkconversion, background="#DFE8F6", wraplength=550, font=(None, 7)).grid(column=0, row=5, sticky=EW)
+ttk.Label(bulkconvertframe, text="Converted data will be saved at", background="#DFE8F6", font=(None, 11)).grid(column=0, row=6, sticky=EW)
+ttk.Label(bulkconvertframe, textvariable=foldertoplaceconverted, background="#DFE8F6", wraplength=550, font=(None, 7)).grid(column=0, row=7, sticky=EW)
+ttk.Label(bulkconvertframe, text="Accepted file types: ", background="#DFE8F6", wraplength=550, font=(None, 11)).grid(column=0, row=8, sticky=EW)
+ttk.Label(bulkconvertframe, textvariable=acceptedvariablesfound, background="#DFE8F6").grid(column=0, row=9, sticky=EW)
+ttk.Label(bulkconvertframe, text="Non Accepted file types: ", background="#DFE8F6", wraplength=550, font=(None, 11)).grid(column=0, row=10, sticky=EW)
+ttk.Label(bulkconvertframe, textvariable=notacceptedvaraiblesfound, background="#DFE8F6").grid(column=0, row=11, sticky=EW)
+
+
+# buttons
+ttk.Button(bulkconvertframe, text="Select", command=lambda: choosefolder()).grid(column=0, row=3, sticky=E)
+ttk.Button(bulkconvertframe, text="Convert", command=lambda: bulkconvert(folderforbulkconversion.get())).grid(column=0, row=12)
+ttk.Button(bulkconvertframe, text="Return to main menu", command=mainframe.tkraise).grid(column=0, row=13, sticky=SW)
+
+# give weight
+bulkconvertframe.columnconfigure((0, 1, 2), weight=1)
+bulkconvertframe.rowconfigure((2, 3, 4, 5, 6, 7, 8, 9, 10, 11), weight=1)
 
 # Taxonmyadderassistant frame (i.e. the menu for it)
 # labels
@@ -5745,6 +5862,10 @@ for child in reviewassistantmenuframe.winfo_children():
 
 for child in optionsframe.winfo_children():
     child.grid_configure(padx=5, pady=5)
+
+for child in bulkconvertframe.winfo_children():
+    child.grid_configure(padx=5, pady=5)
+
 
 
 # problematic libaries loading these last as this seems to fix the pyimage not existing error
