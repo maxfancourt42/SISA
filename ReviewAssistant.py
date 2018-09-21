@@ -1,4 +1,4 @@
-# version 5.4
+# version 5.41
 
 # import the libaries needed
 from selenium import webdriver
@@ -1619,7 +1619,7 @@ def checkpolygonfields(shapefiletotest, freshwater):
         requiredpolygonfields = ['ID_NO', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'geometry']
     # create a list that contains all the required polygon attributes
     # create a list that contains all the optional polygon attributes
-    optionalpolygonfields = ['SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
+    optionalpolygonfields = ['SOURCE', 'DIST_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
 
     # create an empty list to contain the attribute names from the test data
     datapolygonfields = []
@@ -2061,7 +2061,7 @@ def checkfieldpoints(shapefiletotest, attributetoinspect):
 # check the order of the attributes returns 1 if correct, 0 if not
 def checkattributeorder(shapefiletotest, pointorpoly):
     if pointorpoly == "Polygon":
-        correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
+        correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIST_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
     else:
         correctorder = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
 
@@ -2207,7 +2207,7 @@ def fixoptionalattributes(shapefiletofix, freshwater, extrafields, speciesname, 
     global fixattributesTL
 
     if pointorpoly == "Polygon":
-        correctorder = ['SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
+        correctorder = ['SOURCE', 'DIST_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM']
     else:
         correctorder = ['Source', 'Dist_comm', 'Island', 'SUBSPECIES', 'SUBPOP', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChang']
 
@@ -2260,7 +2260,7 @@ def fixoptionalattributes(shapefiletofix, freshwater, extrafields, speciesname, 
 # Reorder the attributes so that they are in the correct order
 def reorganiseattributes(shapefiletorearrange, speciesname, freshwater, pointorpoly):
     if pointorpoly == "Polygon":
-        correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIS_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
+        correctorder = ['ID_NO', 'BASIN_ID', 'BINOMIAL', 'PRESENCE', 'ORIGIN', 'SEASONAL', 'COMPILER', 'YEAR', 'CITATION', 'SOURCE', 'DIST_COMM', 'ISLAND', 'SUBSPECIES', 'SUBPOP', 'TAX_COMM', 'DATA_SENS', 'SENS_COMM', 'Shape_Leng', 'Shape_Area', 'geometry']
     else:
         correctorder = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Dec_Lat', 'Dec_Long', 'SpatialRef', 'Event_Year', 'Citation',  'Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChange', 'geometry']
 
@@ -3866,13 +3866,12 @@ def inportandcovert(csvfile, speciesname):
             crs = {'init': 'epsg:%s' % crsdefine}
 
         # check the POS columns to make sure valid input,
-
         geometry = [Point(xy) for xy in zip(csvfile.Dec_Long, csvfile.Dec_Lat)]
         crs = {'init': 'epsg:4326'}
         gdf = GeoDataFrame(csvfile, crs=crs, geometry=geometry)
 
         # if crs is not WGS 84 then convert the points
-        if crs != "{'init': 'epsg:4326'}":
+        if crs != {'init': 'epsg:4326'}:
             print("Data supplied is not in WGS84 reprojecting...")
             gdf = gdf.to_crs({'init': 'epsg:4326'})
 
@@ -3946,6 +3945,14 @@ def convertCSV(csvfile, speciesname):
         CRS.set("SpatialRef")
     elif "CRS" in attributenames:
         CRS.set("CRS")
+
+    # run through all columns, if any of type bool then convert
+    for x in attributenames:
+        try:
+            if pandascsvdf[x].dtype == "bool":
+                pandascsvdf[x] = pandascsvdf[x] * 1
+        except:
+            pass
 
     # Import button (this will trigger the columns to be renamed and will transform the pandas into a geopandas dataframe
     ttk.Button(CSVdetails, text="Import", command=lambda: inportandcovert(pandascsvdf, speciesname)).grid(column=1, row=7, sticky=NSEW)
