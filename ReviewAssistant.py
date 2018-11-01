@@ -1,4 +1,4 @@
-# version 5.43
+# version 5.5
 
 # import the libaries needed
 from selenium import webdriver
@@ -827,8 +827,8 @@ def loadandreadyreviewinformation(rowinfo):
         speciesID = databasera.iat[rownumber, 0]
 
         # Get the correct Category and criteria from the table
-        candcouput1 = databasera.iat[rownumber, 3]
-        candcoutput2 = databasera.iat[rownumber, 4]
+        candcouput1 = databasera.iat[rownumber, 2]
+        candcoutput2 = databasera.iat[rownumber, 3]
 
         # check to ensure that the database is still in the scope of the underlying database
         if rownumber - 1 < 0:
@@ -1436,7 +1436,6 @@ def update(advorgoback):
     global dspchoice
     global binomialnospaces
 
-
     # get the location of the maps from the global variable
     fp = locationofmaps.get()
     freshwater = freshwaterSV.get()
@@ -1444,7 +1443,7 @@ def update(advorgoback):
 
     # if we know whether there should be hydrobasins or not then save
     if mapengineactive.get() == 1 and freshwater != "NoValue":
-        savemaptofile(fp, "%s_%s" % (databasera.iat[temprownumber, 1], databasera.iat[temprownumber, 2]))
+        savemaptofile(fp, "%s" % binomialnospaces)
 
     # ensure that the driver is on the correct page
     driver.switch_to.window(driver.window_handles[0])
@@ -1468,6 +1467,7 @@ def update(advorgoback):
         binomialnospaces = binomial.replace(" ", "_")
     except:
         binomialnospaces = binomial
+
     SpeciesID = databasera.iat[rownumber, 0]
 
     # Get the correct Category and criteria from the table
@@ -1509,7 +1509,7 @@ def update(advorgoback):
         except:
             pass
 
-        if (createmapfromscratch("%s" % binomialnospaces)) == 0:
+        if (createmapfromscratch("%s" % binomialnospaces)) == 1:
             messagebox.showerror(title="Mysterious Rubber Duck", message="No map for this species could be found")
         else:
             # create the map
@@ -1877,6 +1877,7 @@ def taxupdate(advorgoback):
 # skip to the required assessment
 def skiptofunction():
     global databasera
+    global binomialnospaces
 
     # get the number to skip to
     numbertoskipto = (skipto.get() - 1)
@@ -1896,49 +1897,69 @@ def skiptofunction():
     # refresh the page by clicking the SIS logo
     driver.find_element_by_css_selector(".gwt-HTML.x-component.x-border-panel").click()
 
-    # Get the current species genus and name from the table and species ID
-    output = databasera.iat[rownumber, 1]
-    output2 = databasera.iat[rownumber, 2]
+    # Get the current species genus and name from the table and ID
+    binomial = databasera.iat[rownumber, 1]
+    try:
+        binomialnospaces = binomial.replace(" ", "_")
+    except:
+        binomialnospaces = binomial
+
     SpeciesID = databasera.iat[rownumber, 0]
 
     # Get the correct Category and criteria from the table
-    candcouput1 = databasera.iat[rownumber, 3]
-    candcoutput2 = databasera.iat[rownumber, 4]
+    candcouput1 = databasera.iat[rownumber, 2]
+    candcoutput2 = databasera.iat[rownumber, 3]
 
     # check to ensure that the database is still in the scope of the underlying database
     if rownumber - 1 < 0:
-        previousspeciesoutput = ""
-        previousspeciesoutput2 = ""
+        previousspeciesbinomial = ""
         goback.config(state='disabled')
     else:
-        previousspeciesoutput = databasera.iat[rownumber - 1, 1]
-        previousspeciesoutput2 = databasera.iat[rownumber - 1, 2]
+        previousspeciesbinomial = databasera.iat[rownumber - 1, 1]
         goback.config(state='normal')
 
     if rownumber + 1 >= len(databasera):
-        nextspeciesoutput = ""
-        nextspeciesoutput2 = ""
+        nextspeciesbinomial = ""
         goforward.config(state='disabled')
     else:
-        nextspeciesoutput = databasera.iat[rownumber + 1, 1]
-        nextspeciesoutput2 = databasera.iat[rownumber + 1, 2]
+        nextspeciesbinomial = databasera.iat[rownumber + 1, 1]
         goforward.config(state='normal')
 
     # then set the value of the external rowtracker to the new value
-    currentspeciesname.set("%s %s" % (output, output2))
-    previousspecies.set("%s %s" % (previousspeciesoutput, previousspeciesoutput2))
-    nextspecies.set("%s %s" % (nextspeciesoutput, nextspeciesoutput2))
+    currentspeciesname.set("%s" % binomial)
+    previousspecies.set("%s" % previousspeciesbinomial)
+    nextspecies.set("%s" % nextspeciesbinomial)
     candc.set("%s %s" % (candcouput1, candcoutput2))
 
     # call the search function to look for that species ID
     species_ID.set(SpeciesID)
     tablesearch()
 
-    # update the tracker number
-    databaselength.set(str(tablerownumber.get() + 1) + ' of ' + str(len(databasera)))
+    # if the map viewer has been activated then create map else skip
+    # Get the current species genus and name from the table
+    if mapengineactive.get() == 1:
+        freshwaterSV.set("NoValue")
+        # first try to destroy the current windows (may not have appeared if no map for previous)
+        try:
+            maptestslevel.destroy()
+        except:
+            pass
+
+        if (createmapfromscratch("%s" % binomialnospaces)) == 1:
+            messagebox.showerror(title="Map could not be found", message="No map for this species could be found")
+        else:
+            # create the map
+            webbrowser.open("%s\\SpatialDataStore\\%s.html" % (filedir, binomialnospaces))
+            maptests("%s" % binomialnospaces)
 
     # load the species data if it has any else set to defaults
     reviewload()
+
+    # update the progress number
+    databaselength.set(str(tablerownumber.get() + 1) + ' of ' + str(len(databasera)))
+
+    # set the menu tracker to 0
+    reviewmenuplacetracker.set(0)
 
 # shut down the assistant
 def quit():
@@ -2111,7 +2132,7 @@ def checkfield(attributetoinspect):
     # prepare saving details
     fp = locationofmaps.get()
     rownumber = tablerownumber.get()
-    speciesname = "%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2])
+    speciesname = binomialnospaces
 
     # field checks
     if attributetoinspect == 'PRESENCE':
@@ -2211,10 +2232,9 @@ def checkfield(attributetoinspect):
         # get the name of the species from the database
         rownumber = tablerownumber.get()
         output = databasera.iat[rownumber, 1]
-        output2 = databasera.iat[rownumber, 2]
         try:
             for brow, bvalue in enumerate(spatialdata['BINOMIAL']):
-                if bvalue != ("%s %s" % (output, output2)):
+                if bvalue != ("%s" % output):
                     binomialerrors.append(['BINOMIAL', brow])
             return binomialerrors
         except:
@@ -2249,7 +2269,7 @@ def checkfieldpoints(attributetoinspect):
     # prepare saving details
     fp = locationofmaps.get()
     rownumber = tablerownumber.get()
-    speciesname = "%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2])
+    speciesname = binomialnospaces
 
     if attributetoinspect == 'PRESENCE':
         presenceerrors = []
@@ -2348,10 +2368,9 @@ def checkfieldpoints(attributetoinspect):
         # get the name of the species from the database
         rownumber = tablerownumber.get()
         output = databasera.iat[rownumber, 1]
-        output2 = databasera.iat[rownumber, 2]
         try:
             for brow, bvalue in enumerate(spatialdata['Binomial']):
-                if bvalue != ("%s %s" % (output, output2)):
+                if bvalue != ("%s" % output):
                     binomialerrors.append(['Binomial', brow])
             return binomialerrors
         except:
@@ -2532,7 +2551,7 @@ def commitchanges(correctorder, speciesname, sourcefunction, extrafields):
 
     # regenerate the map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2688,7 +2707,7 @@ def reorganiseattributes(speciesname, pointorpoly):
 
     # recreate the map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2710,7 +2729,7 @@ def dropextrafields(speciesname, pointorpoly):
 
     # recreate the map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2729,7 +2748,7 @@ def commitcitationfieldrepair(speciesname, value, pointorpoly):
 
     # recreate the map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2777,7 +2796,7 @@ def repairbinomialfield(speciesname, pointorpoly):
     rownumber = (tablerownumber.get())
 
     # get the correct name from the database
-    correctname = "%s %s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2])
+    correctname = "%s" % databasera.iat[rownumber, 1]
 
     if pointorpoly == "Polygon":
         # replace all values in the BINOMIAL field with the correct name
@@ -2786,7 +2805,7 @@ def repairbinomialfield(speciesname, pointorpoly):
         spatialdata["Binomial"] = correctname
 
     # recreate the map
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2808,7 +2827,7 @@ def repairIDNOfield(speciesname, pointorpoly):
     else:
         spatialdata["TaxonID"] = SISID
 
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2858,7 +2877,7 @@ def commitPOSchanges(errortable, speciesname, field):
 
     # create the new map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -2869,6 +2888,8 @@ def commitPOSchanges(errortable, speciesname, field):
 def commitPOStextchanges(correctiontable, speciesname, fieldname):
     global repairPOSfieldsTL
     global spatialdata
+    global binomialnospaces
+
     # first take the error table, add a new column which is the corrected data
     counter = 0
     for combobox in repairPOSfieldsTL.children.values():
@@ -2902,8 +2923,7 @@ def commitPOStextchanges(correctiontable, speciesname, fieldname):
     repairPOSfieldsTL.destroy()
 
     # create the new map
-    rownumber = (tablerownumber.get())
-    createmapfromscratch("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createmapfromscratch("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -3333,6 +3353,7 @@ def repairlongandlat(speciesname, errortable):
 def changeCRS(speciesname, pointorpoly):
     global spatialdata
 
+
     # print the current CRS
     print(spatialdata.crs)
 
@@ -3360,8 +3381,7 @@ def changeCRS(speciesname, pointorpoly):
     print(spatialdata.crs)
 
     # create the new map
-    rownumber = (tablerownumber.get())
-    createmapfromscratch("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createmapfromscratch("%s" % speciesname)
 
     # destroy the maptests level and rerun
     maptestslevel.destroy()
@@ -3400,7 +3420,7 @@ def mergeidenticalattributes(speciesname):
     final.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
     # create the new map
     rownumber = (tablerownumber.get())
-    createtableandaddtomap("%s_%s" % (databasera.iat[rownumber, 1], databasera.iat[rownumber, 2]))
+    createtableandaddtomap("%s" % speciesname)
     # destroy the maptests level and rerun
     maptestslevel.destroy()
     # instead of running the whole thing again, remember the f
@@ -3872,7 +3892,10 @@ def mapengineswitch():
 
     # Get the current species genus and name from the table
     binomial = databasera.iat[rownumber, 1]
-    binomialnospace = binomial.replace(" ", "_")
+    try:
+        binomialnospace = binomial.replace(" ", "_")
+    except:
+        binomialnospace = binomial
 
     if mapengineactive.get() == 0:
         # visual stuff to show loading
@@ -5829,10 +5852,10 @@ def downloadallattachements(rowinfo):
     database = pandas.read_pickle(workingsetlocation)
 
     # get the id for the first one
-    id = str(database.iat[0,0])
+    id = str(database.iat[0, 0])
 
     # get the binomial
-    binomial = str(database.iat[0,1])
+    binomial = str(database.iat[0, 1])
 
     # log the user in if needed to allow downloads to occur
     if loggedin == 0:
