@@ -38,7 +38,8 @@ def setinstalldir():
     os.makedirs("%s/SISA/HTMLFiles" % filedir)
     # create the ReviewDirections folder
     os.makedirs("%s/SISA/ReviewDirections" % filedir)
-
+    # create the WorkingSetStore folder
+    os.makedirs("%s/SISA/WorkingSetStore" % filedir)
 
 def download():
     global filedir
@@ -107,6 +108,8 @@ def download():
     dbx.files_download_to_file(path="/VersionNumber.txt", download_path="%s/SISA/VersionNumber.txt" % (filedir))
     print("APIkey.txt")
     dbx.files_download_to_file(path="/APIkey.txt", download_path="%s/SISA/APIkey.txt" % (filedir))
+    print("WSMAPLinkTable.pkl")
+    dbx.files_download_to_file(path="/WorkingSetStore/WSMAPLinkTable.pkl", download_path="%s/SISA/WorkingSetStore/WSMAPLinkTable.pkl" % (filedir))
 
     downloadstatus.set("Downloading Complete")
     root.update()
