@@ -8,8 +8,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.action_chains import ActionChains
-from collections import OrderedDict
-from operator import itemgetter
+from pathlib import PurePath
+from pathlib import Path
 
 import csv
 import os
@@ -20,7 +20,6 @@ import pip
 import collections
 import shutil
 import copy
-import json
 
 import dropbox
 
@@ -39,10 +38,8 @@ import folium
 import geopandas
 from geopandas import GeoDataFrame
 from shapely.geometry import Point
-import shapely
 from shapely import speedups
 speedups.enable()
-import fiona
 
 # get the directory from which the python file is running
 filedir = os.path.dirname(__file__)
@@ -52,12 +49,12 @@ print(filedir)
 # function declarations
 # setup the webdriver
 options = webdriver.ChromeOptions()
-prefs = {'download.default_directory' : '{}'.format(os.path.expanduser("~\Desktop\AttachmentDownload"))}
+prefs = {'download.default_directory': '{}'.format(os.path.expanduser("~\\Desktop\\AttachmentDownload"))}
 options.add_experimental_option('prefs', prefs)
 options.add_argument('--lang=en-GB')
 options.add_argument('--disable-infobars')
 
-driver = webdriver.Chrome(executable_path='%s\ChromeDriver\chromedriver.exe' % filedir, options=options)
+driver = webdriver.Chrome(executable_path='%s\\ChromeDriver\\chromedriver.exe' % filedir, options=options)
 
 
 # workaround for sendkeys
@@ -679,7 +676,7 @@ def addtoworkingset():
 
 
 # function to save the map to a shapefile
-def savemaptofile(locationtosave, speciesname):
+def savemaptofile(speciesname):
     # get the schema from the file
     schema = geopandas.io.file.infer_schema(spatialdata)
 
@@ -692,7 +689,7 @@ def savemaptofile(locationtosave, speciesname):
                 schema["properties"][x] = 'int:64'
 
     # save to file
-    spatialdata.to_file(locationtosave, driver='ESRI Shapefile', layer=speciesname, schema=schema)
+    spatialdata.to_file(currentsavelocation, driver='ESRI Shapefile', layer=speciesname, schema=schema)
     return 0
 
 
@@ -792,7 +789,28 @@ def importsisrawandconvert():
     databasera.to_pickle(path="%s\\WorkingSetStore\\%s.pkl" % (filedir, workingsetname))
     # ask user if they have maps
     if messagebox.askyesno(title="Map Data Location", message="Do you have any maps for this working set"):
+        # if yes then get the location and store for later use
         maplocation = filedialog.askdirectory()
+        # test for polygon folder, create if it doesn't exist
+        if not os.path.isdir("%s/Polygon" % maplocation):
+            os.makedirs("%s/Polygon" % maplocation)
+            os.makedirs("%s/Polygon/shapefilespreediting" % maplocation)
+            os.makedirs("%s/Polygon/originalfiles" % maplocation)
+            os.makedirs("%s/Polygon/finalfiles" % maplocation)
+        if not os.path.isdir("%s/Point" % maplocation):
+            os.makedirs("%s/Point" % maplocation)
+            os.makedirs("%s/Point/shapefilespreediting" % maplocation)
+            os.makedirs("%s/Point/originalfiles" % maplocation)
+            os.makedirs("%s/Point/finalfiles" % maplocation)
+        if not os.path.isdir("%s/Hydrobasin" % maplocation):
+            os.makedirs("%s/Hydrobasin" % maplocation)
+            os.makedirs("%s/Hydrobasin/shapefilespreediting" % maplocation)
+            os.makedirs("%s/Hydrobasin/originalfiles" % maplocation)
+            os.makedirs("%s/Hydrobasin/finalfiles" % maplocation)
+        # show an information messagebox which explains where to put the data and what to do
+        messagebox.showinfo("Organsing map data", "Please organise your spatial data into one of the three folders depending on whether it represents, point, polygon or hydrobasin data, within that folder please place it in the folder titled originalfiles, please note that spatial data can be any of the supported formats, throw it all in and let the software do the conversion if necessary")
+        # open the folder to show them what is meant
+        os.system('start %s' % maplocation)
     else:
         maplocation = "FALSE"
 
@@ -1490,7 +1508,7 @@ def update(advorgoback):
 
     # if we know whether there should be hydrobasins or not then save
     if mapengineactive.get() == 1 and freshwater != "NoValue":
-        savemaptofile(fp, "%s" % binomialnospaces)
+        savemaptofile(binomialnospaces)
 
     # ensure that the driver is on the correct page
     driver.switch_to.window(driver.window_handles[0])
@@ -2143,7 +2161,7 @@ def checkpointfields():
     returnlist = [[] for _ in range(2)]
 
     # create the basic require points list
-    requiredpointfields = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year','Data_sens','geometry']
+    requiredpointfields = ['TaxonID', 'Binomial', 'Presence', 'Origin', 'Seasonal', 'Compiler', 'Year', 'Citation', 'Dec_Lat', 'SpatialRef', 'Dec_Long', 'Event_Year','Data_sens', 'geometry']
 
     # create a list that contains all the optional polygon attributes
     optionalpointfields = ['Source', 'Dist_comm', 'Island', 'Subspecies', 'Subpop', 'Tax_comm', 'BasisOfRec', 'CatalogNo', 'collectID', 'recordNo', 'recordedBy', 'day', 'countryCode', 'minElev', 'maxElev', 'verbatLat', 'verbatLong', 'verbatCoord', 'verbatSRS', 'coordUncert', 'georefVeri', 'georefnotes', 'subgenus', 'obsYrQual', 'obsCompNot', 'adminError', 'adminFixed', 'adminSrcFix', 'adminChang']
@@ -2568,14 +2586,20 @@ def checkfieldpoints(attributetoinspect):
     elif attributetoinspect == 'Data_sens':
         DSerrors = []
         # check if correct column exists
-        if "Data_sens" in spatialdata:
-            if datasenscheck.get() == 0:
-                DSerrors.append("check")
+        try:
+            # check if correct column exists
+            if "Data_sens" in spatialdata:
+                if datasenscheck.get() == 0:
+                    DSerrors.append("check")
+                else:
+                    DSerrors.append("nocheck")
+                return DSerrors
             else:
-                DSerrors.append("nocheck")
-            return DSerrors
-        else:
+                DSerrors.append(['DS Error'])
+                return DSerrors
+        except:
             DSerrors.append(['DS Error'])
+            return DSerrors
     else:
         print("Invalid attribute provided")
 
@@ -3022,7 +3046,7 @@ def commitPOStextchanges(correctiontable, speciesname, fieldname):
     fp = locationofmaps.get()
 
     # save the file
-    savemaptofile(fp, speciesname)
+    savemaptofile(speciesname)
 
     # destroy the toplevel
     repairPOSfieldsTL.destroy()
@@ -3471,7 +3495,7 @@ def changeCRS(speciesname, pointorpoly):
         try:
             spatialdata = spatialdata.to_crs({'init': 'epsg:4326'})
             # after all changes have occurred then save the file
-            savemaptofile(locationofmaps.get(), speciesname)
+            savemaptofile(speciesname)
         except:
             messagebox.showerror(title="An Error Has Occurred", message="Error transforming data")
     else:
@@ -3777,7 +3801,7 @@ def maptests(speciesname):
 
         # check to see if already been backed up in pre-edits, if not then save it now
         if os.path.isfile("%s/originalfiles/%s.shp" % (fp, speciesname)) == False:
-            savemaptofile(fp, "%s" % speciesname)
+            savemaptofile(speciesname)
 
         # check that all required fields are present, and identify fields that need to be removed
         checkpoly = checkpolygonfields()
@@ -3993,7 +4017,7 @@ def maptests(speciesname):
 
         # check to see if already been backed up in pre-edits, if not then save it now
         if os.path.isfile("%s/originalfiles/%s.shp" % (fp, speciesname)) == False:
-            savemaptofile(fp, "%s" % speciesname)
+            savemaptofile(speciesname)
 
         # check that all required fields are present, and identify fields that need to be removed
         checkpoint = checkpointfields()
@@ -4148,7 +4172,7 @@ def maptests(speciesname):
                 rowcounter = rowcounter + 1
 
         # ask the user to confirm whether any of the data is sensitive, and the opportunity to change it if it is.
-        datasenserrors = checkfield('Data_sens')
+        datasenserrors = checkfieldpoints('Data_sens')
         # first check if error as this means the column doesn't exist and hence you will have to wait to fix it
         if datasenserrors[0] == "DS Error":
             ttk.Label(maptestslevel, text="Data_sens attribute absent or mispelled", background="#DFE8F6", borderwidth=3, relief="solid").grid(row=rowcounter, column=0, sticky=NSEW)
@@ -4218,16 +4242,17 @@ def maptests(speciesname):
 def mapengineswitch():
     global mapdriver
     global databasera
+    global binomialnospace
 
     # first check if they have provided map data if not offer them the chance to open it from here
     rownumber = (tablerownumber.get())
 
-    # Get the current species genus and name from the table
+    # create the two variants of name supported (with and without space)
     binomial = databasera.iat[rownumber, 1]
-    try:
-        binomialnospace = binomial.replace(" ", "_")
-    except:
-        binomialnospace = binomial
+    binomialnospace = binomial.replace(" ", "_")
+    listofnames = []
+    listofnames.append(binomial)
+    listofnames.append(binomialnospace)
 
     if mapengineactive.get() == 0:
         # visual stuff to show loading
@@ -4236,8 +4261,8 @@ def mapengineswitch():
         # set the tracking variable to show that the mapengine is running
         mapengineactive.set(1)
         # create map for species, overwrite if already there
-        if createmapfromscratch("%s" % binomialnospace) == 1:
-            messagebox.showerror(title="Mysterious Rubber Duck", message="No map for this species could be found")
+        if firsttimecreatemap(listofnames) == 1:
+            messagebox.showerror(title="Map Error", message="No map for this species could be found")
             mapenginetext.set("Stop Maps")
             return 0
         # create the map driver itself
@@ -4491,132 +4516,135 @@ def calculateeoobymcp(shapefile, pointorpoly):
 
 # reads in a geocat file and converts into a ESRI shapefile
 def convertGEOCAT(geocatfile):
-    # the list of attributes to be searched
-    attributestosearchfor = ["coordinateUncertaintyInMeters", "collector", "eventDate", "occurrenceRemarks", "latitude", "longitude", "collectionCode", "catalogNumber", "basisOfRecord", "country", "presence", "scientificName", "locality", "seasonal", "origin", "occurrenceDetails", "data_sens", "sens_comm", "compiler", "yrcompiled", "verbatimElevation"]
-
-    # create a blank pandas data frame with the correct column names
-    pointsdata = pandas.DataFrame(columns=["TaxonID"])
-    pointsdata["TaxonID"] = 0
-
-    # open the geopandas dataframe
-    opentemp = open(geocatfile, "r", encoding='UTF-8')
-
-    # read them into memory
-    contents = opentemp.read()
-
-    # get read of the head information only interested in information after the "points" section
-    # try to split on analysis (if they have used geocat to calcuate AOO/EOO)
     try:
-        stepone = contents.split(sep="analysis")[0]
-    except:
-        stepone = contents
+        # the list of attributes to be searched
+        attributestosearchfor = ["coordinateUncertaintyInMeters", "collector", "eventDate", "occurrenceRemarks", "latitude", "longitude", "collectionCode", "catalogNumber", "basisOfRecord", "country", "presence", "scientificName", "locality", "seasonal", "origin", "occurrenceDetails", "data_sens", "sens_comm", "compiler", "yrcompiled", "verbatimElevation"]
 
-    # user points are stored separatly to the GBIF points
-    sourcelist = stepone.split(sep="points")
-    # delete the header
-    del sourcelist[0]
+        # create a blank pandas data frame with the correct column names
+        pointsdata = pandas.DataFrame(columns=["TaxonID"])
+        pointsdata["TaxonID"] = 0
 
-    # if the length of the list is 1, then just user information has been provided, greater than one means that GBIF data etc is included
-    for source in sourcelist:
-        # split the points section into data for each point (searching for everything between { and }
-        individualspoints = re.findall('{(.+?)}', source)
-        # for each point
-        for x in individualspoints:
-            key = []
-            value = []
-            # try and find each attribute, if found then add the key and value to the key or value libary
-            for variable in attributestosearchfor:
-                if variable == "coordinateUncertaintyInMeters":
-                    try:
-                        temp = re.search('coordinateUncertaintyInMeters":(.+?),', x).group(1)
-                        if temp == "\"\"":
-                            value.append(None)
-                        else:
-                            value.append(temp.strip("\""))
-                        key.append("coordinateUncertaintyInMeters")
-                    except AttributeError:
-                        pass
-                else:
-                    try:
-                        temp = re.search('%s":(.+?),' % variable, x).group(1)
-                        if temp == "\"\"":
-                            value.append(None)
-                        else:
-                            value.append(temp.strip("\""))
-                        key.append(variable)
-                    except AttributeError:
-                        pass
+        # open the geopandas dataframe
+        opentemp = open(geocatfile, "r", encoding='UTF-8')
 
-            dictionary = dict(zip(key, value))
+        # read them into memory
+        contents = opentemp.read()
 
-            # create a series from the dictionary
-            tempdata = pandas.Series(dictionary)
-
-            pointsdata = pointsdata.append(tempdata, ignore_index=True)
-
-    # wiperth the data in a dataframe format, now do the first stage rough tidying up of data
-    # create the dictionary to map geocat attributes to IUCN standards
-    conversiondictionary = {"coordinateUncertaintyInMeters": "coordUncert", "collector": "recordedBy", "eventDate": "Event_Year", "latitude": "Dec_Lat", "longitude": "Dec_Long", "collectionCode": "collectID", "catalogNumber": "CatalogNo", "basisOfRecord": "BasisOfRec", "country": "countryCode", "presence": "Presence", "scientificName": "Binomial", "seasonal": "Seasonal", "origin": "Origin", "occurrenceDetails": "Source", "data_sens": "Data_sens", "sens_comm": "Sens_comm", "compiler": "Compiler", "yrcompiled": "Year"}
-    presencemap = {"Extant": 1, "Probably Extant": 2, "Possibly Extant": 3, "Possibly Extinct": 4, "Extinct": 5, "Presence Uncertain": 6}
-    originmap = {"Native": 1, "Reintroduced": 2, "Introduced": 3, "Vagrant": 4, "Origin Uncertain": 5, "Assisted Colonisation": 6}
-    seasonalmap = {"Resident": 1, "Breeding Season": 2, "Non-breeding Season": 3, "Passage": 4, "Seasonal Occurrence Uncertain": 5}
-
-    # run through and map the geocat variables to the IUCN point standards
-    for x in pointsdata:
+        # get read of the head information only interested in information after the "points" section
+        # try to split on analysis (if they have used geocat to calcuate AOO/EOO)
         try:
-            if x in ("latitude", "longitude"):
-                pointsdata[conversiondictionary[x]] = pointsdata[x].astype('float64')
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x in ("TaxonID", "coordUncer"):
-                pointsdata[conversiondictionary[x]] = pointsdata[x].astype('int64')
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x == "presence":
-                for row, y in enumerate(pointsdata["presence"]):
-                    try:
-                        pointsdata.at[row, "Presence"] = int(presencemap[y])
-                    except:
-                        pointsdata.at[row, "Presence"] = 0
-                pointsdata["Presence"] = pointsdata["Presence"].astype("int32")
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x == "origin":
-                for row, y in enumerate(pointsdata["origin"]):
-                    try:
-                        pointsdata.at[row, "Origin"] = int(originmap[y])
-                    except:
-                        pointsdata.at[row, "Origin"] = 0
-                pointsdata["Origin"] = pointsdata["Origin"].astype("int32")
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x == "seasonal":
-                for row, y in enumerate(pointsdata["seasonal"]):
-                    try:
-                        pointsdata.at[row, "Seasonal"] = int(seasonalmap[y])
-                    except:
-                        pointsdata.at[row, "Seasonal"] = 0
-                pointsdata["Seasonal"] = pointsdata["Seasonal"].astype("int32")
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x in ("occurrenceRemarks", "catalogue_id", "institutionCode", "collectorNumber", "stateProvince", "county", "interpretedFrom", "identifiedBy"):
-                pointsdata.drop(x, axis=1, inplace=True)
-            elif x in "verbatimElevation":
-                pointsdata["maxElev"] = pointsdata[x]
-                pointsdata["minElev"] = pointsdata[x]
-                pointsdata.drop(x, axis=1, inplace=True)
-            else:
-                pointsdata[conversiondictionary[x]] = pointsdata[x]
-                pointsdata.drop(x, axis=1, inplace=True)
+            stepone = contents.split(sep="analysis")[0]
         except:
-            pass
+            stepone = contents
 
-    # convert from pandas into geopandas format
-    geometry = [Point(xy) for xy in zip(pointsdata.Dec_Long, pointsdata.Dec_Lat)]
-    crs = {'init': 'epsg:4326'}
-    gdf = GeoDataFrame(pointsdata, crs=crs, geometry=geometry)
+        # user points are stored separatly to the GBIF points
+        sourcelist = stepone.split(sep="points")
+        # delete the header
+        del sourcelist[0]
 
-    return gdf
+        # if the length of the list is 1, then just user information has been provided, greater than one means that GBIF data etc is included
+        for source in sourcelist:
+            # split the points section into data for each point (searching for everything between { and }
+            individualspoints = re.findall('{(.+?)}', source)
+            # for each point
+            for x in individualspoints:
+                key = []
+                value = []
+                # try and find each attribute, if found then add the key and value to the key or value libary
+                for variable in attributestosearchfor:
+                    if variable == "coordinateUncertaintyInMeters":
+                        try:
+                            temp = re.search('coordinateUncertaintyInMeters":(.+?),', x).group(1)
+                            if temp == "\"\"":
+                                value.append(None)
+                            else:
+                                value.append(temp.strip("\""))
+                            key.append("coordinateUncertaintyInMeters")
+                        except AttributeError:
+                            pass
+                    else:
+                        try:
+                            temp = re.search('%s":(.+?),' % variable, x).group(1)
+                            if temp == "\"\"":
+                                value.append(None)
+                            else:
+                                value.append(temp.strip("\""))
+                            key.append(variable)
+                        except AttributeError:
+                            pass
+
+                dictionary = dict(zip(key, value))
+
+                # create a series from the dictionary
+                tempdata = pandas.Series(dictionary)
+
+                pointsdata = pointsdata.append(tempdata, ignore_index=True)
+
+        # wiperth the data in a dataframe format, now do the first stage rough tidying up of data
+        # create the dictionary to map geocat attributes to IUCN standards
+        conversiondictionary = {"coordinateUncertaintyInMeters": "coordUncert", "collector": "recordedBy", "eventDate": "Event_Year", "latitude": "Dec_Lat", "longitude": "Dec_Long", "collectionCode": "collectID", "catalogNumber": "CatalogNo", "basisOfRecord": "BasisOfRec", "country": "countryCode", "presence": "Presence", "scientificName": "Binomial", "seasonal": "Seasonal", "origin": "Origin", "occurrenceDetails": "Source", "data_sens": "Data_sens", "sens_comm": "Sens_comm", "compiler": "Compiler", "yrcompiled": "Year"}
+        presencemap = {"Extant": 1, "Probably Extant": 2, "Possibly Extant": 3, "Possibly Extinct": 4, "Extinct": 5, "Presence Uncertain": 6}
+        originmap = {"Native": 1, "Reintroduced": 2, "Introduced": 3, "Vagrant": 4, "Origin Uncertain": 5, "Assisted Colonisation": 6}
+        seasonalmap = {"Resident": 1, "Breeding Season": 2, "Non-breeding Season": 3, "Passage": 4, "Seasonal Occurrence Uncertain": 5}
+
+        # run through and map the geocat variables to the IUCN point standards
+        for x in pointsdata:
+            try:
+                if x in ("latitude", "longitude"):
+                    pointsdata[conversiondictionary[x]] = pointsdata[x].astype('float64')
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x in ("TaxonID", "coordUncer"):
+                    pointsdata[conversiondictionary[x]] = pointsdata[x].astype('int64')
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x == "presence":
+                    for row, y in enumerate(pointsdata["presence"]):
+                        try:
+                            pointsdata.at[row, "Presence"] = int(presencemap[y])
+                        except:
+                            pointsdata.at[row, "Presence"] = 0
+                    pointsdata["Presence"] = pointsdata["Presence"].astype("int32")
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x == "origin":
+                    for row, y in enumerate(pointsdata["origin"]):
+                        try:
+                            pointsdata.at[row, "Origin"] = int(originmap[y])
+                        except:
+                            pointsdata.at[row, "Origin"] = 0
+                    pointsdata["Origin"] = pointsdata["Origin"].astype("int32")
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x == "seasonal":
+                    for row, y in enumerate(pointsdata["seasonal"]):
+                        try:
+                            pointsdata.at[row, "Seasonal"] = int(seasonalmap[y])
+                        except:
+                            pointsdata.at[row, "Seasonal"] = 0
+                    pointsdata["Seasonal"] = pointsdata["Seasonal"].astype("int32")
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x in ("occurrenceRemarks", "catalogue_id", "institutionCode", "collectorNumber", "stateProvince", "county", "interpretedFrom", "identifiedBy"):
+                    pointsdata.drop(x, axis=1, inplace=True)
+                elif x in "verbatimElevation":
+                    pointsdata["maxElev"] = pointsdata[x]
+                    pointsdata["minElev"] = pointsdata[x]
+                    pointsdata.drop(x, axis=1, inplace=True)
+                else:
+                    pointsdata[conversiondictionary[x]] = pointsdata[x]
+                    pointsdata.drop(x, axis=1, inplace=True)
+            except:
+                pass
+
+        # convert from pandas into geopandas format
+        geometry = [Point(xy) for xy in zip(pointsdata.Dec_Long, pointsdata.Dec_Lat)]
+        crs = {'init': 'epsg:4326'}
+        gdf = GeoDataFrame(pointsdata, crs=crs, geometry=geometry)
+
+        return gdf
+    except:
+        return 1
 
 
 # change the CSV columns to the correct names and then convert to geopandas
-def inportandcovert(csvfile, speciesname):
-    global spatialdata
+def inportandcovert(csvfile):
+    global tempdataframeCSV
     # create dictionary to store all conversions
     try:
         conversiontable = []
@@ -4655,15 +4683,18 @@ def inportandcovert(csvfile, speciesname):
         # check the POS columns to make sure valid input,
         geometry = [Point(xy) for xy in zip(csvfile.Dec_Long, csvfile.Dec_Lat)]
         crs = {'init': 'epsg:4326'}
-        spatialdata = GeoDataFrame(csvfile, crs=crs, geometry=geometry)
+        tempdataframeCSV = GeoDataFrame(csvfile, crs=crs, geometry=geometry)
 
         # if crs is not WGS 84 then convert the points
         if crs != {'init': 'epsg:4326'}:
             print("Data supplied is not in WGS84 reprojecting...")
-            spatialdata = spatialdata.to_crs({'init': 'epsg:4326'})
+            tempdataframeCSV = tempdataframeCSV.to_crs({'init': 'epsg:4326'})
 
         # destroy topwindow
         CSVdetails.destroy()
+
+        # return the dataframe for use
+        return 0
     except:
         print("Error in convering CSV to ESRI feature class")
         messagebox.showerror(title="An Error Has Occurred", message="Error in CSV to feature class conversion")
@@ -4671,7 +4702,7 @@ def inportandcovert(csvfile, speciesname):
 
 
 # reads in csv file and coverts into a ESRI shapefile
-def convertCSV(csvfile, speciesname):
+def convertCSV(csvfile):
     global CSVdetails
     global spatialdata
 
@@ -4735,7 +4766,7 @@ def convertCSV(csvfile, speciesname):
             pass
 
     # Import button (this will trigger the columns to be renamed and will transform the pandas into a geopandas dataframe
-    ttk.Button(CSVdetails, text="Import", command=lambda: inportandcovert(pandascsvdf, speciesname)).grid(column=1, row=7, sticky=NSEW)
+    ttk.Button(CSVdetails, text="Import", command=lambda: inportandcovert(pandascsvdf)).grid(column=1, row=7, sticky=NSEW)
 
     # give weight to everything to fill it out
     CSVdetails.columnconfigure((0, 1, 2), weight=1)
@@ -4745,143 +4776,195 @@ def convertCSV(csvfile, speciesname):
 
 
 # function to create the map for the current species
-def createmapfromscratch(speciesname):
+def firsttimecreatemap(listofnames):
     global filedir
     global htmlmapstore
     global spatialdata
     global maptype
+    global correctpointpath
+    global correctpolygonpath
+    global correcthydrobasinpath
+    global mapfilesfound
+
+    # blank the global name variables for use
+    correctpointpath = None
+    correctpolygonpath = None
+    correcthydrobasinpath = None
 
     # get the location of the maps from the global variable
     fp = locationofmaps.get()
 
-    # first test to see if shapefile for this species exists if not then word down the list
-    # create all the supported versions of the file
-    shapefiletest = "%s/%s.shp" % (fp, speciesname)
-    geocattestfile = "%s/%s.geocat" % (fp, speciesname)
-    csvtestfile = "%s/%s.csv" % (fp, speciesname)
+    # create a list to hold all the name variants
+    potentialnames = []
+    # run through the list and create the variants required to search
+    for name in listofnames:
+        potentialnames.append("%s/Point/originalfiles/%s.shp" % (fp, name))
+        potentialnames.append("%s/Polygon/originalfiles/%s.shp" % (fp, name))
+        potentialnames.append("%s/Hydrobasin/originalfiles/%s.shp" % (fp, name))
+        potentialnames.append("%s/Point/originalfiles/%s.geocat" % (fp, name))
+        potentialnames.append("%s/Polygon/originalfiles/%s.geocat" % (fp, name))
+        potentialnames.append("%s/Hydrobasin/originalfiles/%s.geocat" % (fp, name))
+        potentialnames.append("%s/Point/originalfiles/%s.csv" % (fp, name))
+        potentialnames.append("%s/Polygon/originalfiles/%s.csv" % (fp, name))
+        potentialnames.append("%s/Hydrobasin/originalfiles/%s.csv" % (fp, name))
 
-    # check to see if backupfolder exists if not then create it
-    if os.path.isdir("%s/originalfiles" % fp) == False:
-        os.makedirs("%s/originalfiles" % fp)
+    # create a list to contain all the files found
+    correctnames = []
+    # run through the list and test to see which ones exist
+    for name in potentialnames:
+        if os.path.isfile(name):
+            correctnames.append(name)
 
-    # check to see if shapefilespreediting exists if not then create it
-    if os.path.isdir("%s/shapefilespreediting" % fp) == False:
-        os.makedirs("%s/shapefilespreediting" % fp)
+    print(correctnames)
+            
+    # run through and assign the results to global variables for this instance
+    for name in correctnames:
+        if "/Point/" in name:
+            correctpointpath = name
+        elif "/Polygon/" in name:
+            correctpolygonpath = name
+        elif "/Hydrobasin/" in name:
+            correcthydrobasinpath = name
 
-    if os.path.isfile(shapefiletest):
-        # check to see if see if this is in the original files
-        if os.path.isfile("%s/shapefilespreediting/%s.shp" % (fp, speciesname)) is False:
-            # if yes then check to see if in the preediting files
-            shutil.copy("%s/%s.cpg" % (fp, speciesname), "%s/shapefilespreediting/%s.cpg" % (fp, speciesname))
-            shutil.copy("%s/%s.dbf" % (fp, speciesname), "%s/shapefilespreediting/%s.dbf" % (fp, speciesname))
-            shutil.copy("%s/%s.prj" % (fp, speciesname), "%s/shapefilespreediting/%s.prj" % (fp, speciesname))
-            shutil.copy("%s/%s.shp" % (fp, speciesname), "%s/shapefilespreediting/%s.shp" % (fp, speciesname))
-            shutil.copy("%s/%s.shx" % (fp, speciesname), "%s/shapefilespreediting/%s.shx" % (fp, speciesname))
-            print("Shapefile detected")
-            # create the spatial data file
-        spatialdata = geopandas.read_file(fp, driver='ESRI Shapefile', layer=speciesname)
 
-    # if shapefile doesn't exist then try to look for a geocat
-    elif os.path.isfile(geocattestfile):
-        spatialdata = convertGEOCAT(geocattestfile)
-        # save the resulting shapefile to file
-        spatialdata.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
-        # save the resulting shapefile to preedits file
-        spatialdata.to_file("%s/shapefilespreediting" % fp, driver='ESRI Shapefile', layer=speciesname)
-        # move the geocat to the original files folder
-        os.rename(geocattestfile, "%s/originalfiles/%s.geocat" % (fp, speciesname))
-        # print success to screen
-        print("Geocat file detected and successfully converted")
+    # create a toplevel to show the results and allow user to modify the results
+    # create the outline of the toplevel
+    mapfilesfound = Toplevel()
+    mapfilesfound.config(background="#DFE8F6")
+    # position of parent window
+    x = root.winfo_screenwidth()
+    y = root.winfo_screenheight()
+
+    mapfilesfound.geometry('%dx%d+%d+%d' % (500, 500, x / 2 - 250, y / 2 - 250))
+
+    # create TopLevel labels
+    ttk.Label(mapfilesfound, text="Spatial Data Summary", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6", anchor=N).grid(column=0, row=0, columnspan=2, sticky=NSEW)
+    # for each of the data types display the file found and the options to view
+    # point data text
+    ttk.Label(mapfilesfound, text="Point Data", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=1, columnspan=2, sticky=EW)
+    if correctpointpath is None:
+        ttk.Label(mapfilesfound, text="No Point Data found", background="#DFE8F6").grid(column=0, row=2, rowspan=2, sticky=EW)
+        ttk.Button(mapfilesfound, text="Find Manually").grid(column=1, row=2)
+    else:
+        ttk.Label(mapfilesfound, text="%s" % correctpointpath, background="#DFE8F6", wraplength=300).grid(column=0, row=2, sticky=EW)
+        ttk.Button(mapfilesfound, text="Modify").grid(column=1, row=2)
+        ttk.Button(mapfilesfound, text="View", command=lambda: intialconverttoshapefile(correctpointpath, "Point")).grid(column=1, row=3)
+
+    # polygon data text
+    ttk.Label(mapfilesfound, text="Polygon Data", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=4, columnspan=2, sticky=EW)
+    if correctpolygonpath is None:
+        ttk.Label(mapfilesfound, text="No Polygon Data found", background="#DFE8F6").grid(column=0, row=5, rowspan=2, sticky=EW)
+        ttk.Button(mapfilesfound, text="Find Manually").grid(column=1, row=5)
+    else:
+        ttk.Label(mapfilesfound, text="%s" % correctpolygonpath, background="#DFE8F6", wraplength=300).grid(column=0, row=5, sticky=EW, rowspan=2)
+        ttk.Button(mapfilesfound, text="Modify").grid(column=1, row=5)
+        ttk.Button(mapfilesfound, text="View", command=lambda: intialconverttoshapefile(correctpolygonpath, "Polygon")).grid(column=1, row=6)
+
+    # hydrobasin data text
+    ttk.Label(mapfilesfound, text="Hydrobasin Data", font=(None, 13, "bold"), borderwidth=3, relief="solid", background="#DFE8F6").grid(column=0, row=7, columnspan=2, sticky=EW)
+    if correcthydrobasinpath is None:
+        ttk.Label(mapfilesfound, text="No Polygon Data found", background="#DFE8F6").grid(column=0, row=8, columnspan=2, sticky=EW, rowspan=2)
+        ttk.Button(mapfilesfound, text="Find Manually").grid(column=1, row=8)
+    else:
+        ttk.Label(mapfilesfound, text="%s" % correcthydrobasinpath, background="#DFE8F6", wraplength=300).grid(column=0, row=8, sticky=EW, rowspan=2)
+        ttk.Button(mapfilesfound, text="Modify").grid(column=1, row=8)
+        ttk.Button(mapfilesfound, text="View", command=lambda: intialconverttoshapefile(correcthydrobasinpath, "Hydrobasin")).grid(column=1, row=9)
+
+    # give weight to the columns and rows
+    #mapfilesfound.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1)
+    mapfilesfound.columnconfigure((0, 1), weight=1)
+
+    for child in mapfilesfound.winfo_children():
+        child.grid_configure(padx=5, pady=5)
+
+    mapfilesfound.wait_window()
+
+
+# take the input and convert it to a shapefile that is then saved to the finalfile folder to be assessed later
+def intialconverttoshapefile(filetoopen, filetype):
+    global binomialnospace
+    global tempdataframeCSV
+    global mapfilesfound
+
+    # test to see if file exists in pre-edit folder
+    preedittest = filetoopen.replace("originalfiles", "shapefilespreediting")
+    finalfile = filetoopen.replace("originalfiles", "finalfiles")
+    finalfiletomoveto = Path(finalfile).with_suffix('')
+    pathtomovefrom = Path(filetoopen).with_suffix('')
+    pathtomoveto = Path(preedittest).with_suffix('')
+
+    # if the file is a shapefile
+    if Path(filetoopen).suffix == ".shp":
+        print("Shapefile detected")
+        # check to see if see if this is in the shapefilespreediting files
+        if os.path.isfile(preedittest) is False:
+            # if yes then copy it over to the pre
+            shutil.copy("%s.cpg" % pathtomovefrom, "%s.cpg" % pathtomoveto)
+            shutil.copy("%s.dbf" % pathtomovefrom, "%s.dbf" % pathtomoveto)
+            shutil.copy("%s.prj" % pathtomovefrom, "%s.prj" % pathtomoveto)
+            shutil.copy("%s.shp" % pathtomovefrom, "%s.shp" % pathtomoveto)
+            shutil.copy("%s.shx" % pathtomovefrom, "%s.shx" % pathtomoveto)
+            print("Shapefile coped to preedit folder")
+        if os.path.isfile(finalfile) is False:
+            # then copy to the final files and open
+            shutil.copy("%s.cpg" % pathtomovefrom, "%s.cpg" % finalfiletomoveto)
+            shutil.copy("%s.dbf" % pathtomovefrom, "%s.dbf" % finalfiletomoveto)
+            shutil.copy("%s.prj" % pathtomovefrom, "%s.prj" % finalfiletomoveto)
+            shutil.copy("%s.shp" % pathtomovefrom, "%s.shp" % finalfiletomoveto)
+            shutil.copy("%s.shx" % pathtomovefrom, "%s.shx" % finalfiletomoveto)
+            print("Shapefile coped to final folder")
+
+    # if the file is a geocat
+    elif Path(filetoopen).suffix == ".geocat":
+        print("Geocat detected")
+        tempdataframe = convertGEOCAT(filetoopen)
+        if tempdataframe.empty:
+            print("Conversion to shapefile failed")
+        try:
+            # save the resulting shapefile to file
+            tempdataframe.to_file(Path(finalfile).parents[0], driver='ESRI Shapefile', layer=binomialnospace)
+            # cop the resulting shapefile to preedits file
+            tempdataframe.to_file(Path(preedittest).parents[0], driver='ESRI Shapefile', layer=binomialnospace)
+            # print success to screen
+            print("Geocat file detected and successfully converted")
+        except:
+            print("Conversion to shapefile failed")
 
     # if geocat doesn't exist then check to see if it's a csv
-    elif os.path.isfile(csvtestfile):
+    elif Path(filetoopen).suffix == ".csv":
         # convert the CSV into a shapefile
-        convertCSV(csvtestfile, speciesname)
-        # save to file
-        spatialdata.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
-        # save to backupfile
-        spatialdata.to_file("%s/shapefilespreediting", driver='ESRI Shapefile', layer=speciesname)
-        # move original file to originals folder
-        os.rename(csvtestfile, "%s/originalfiles/%s.csv" % (fp, speciesname))
+        convertCSV(filetoopen)
+        # save the resulting shapefile to file
+        tempdataframeCSV.to_file(Path(finalfile).parents[0], driver='ESRI Shapefile', layer=binomialnospace)
+        # cop the resulting shapefile to preedits file
+        tempdataframeCSV.to_file(Path(preedittest).parents[0], driver='ESRI Shapefile', layer=binomialnospace)
         # print success to screen
         print("CSV file detected and successfully converted")
 
-    # else through a warning that file couldn't be found, and ask user to find
+    # having converted into a shapefile now create the map from scratch using the finalfile version
+    createmapfromscratch(Path(finalfile).parents[0], binomialnospace ,filetype)
+
+    # close down the toplevel
+    mapfilesfound.destroy()
+
+
+# function to create the map for the current species
+def createmapfromscratch(filepath, speciesname, filetype):
+    global binomialnospace
+    global spatialdata
+    global htmlmapstore
+    global currentsavelocation
+
+    currentsavelocation = filepath
+
+    # set the hydrobasin variable to true, else false
+    if filetype == "Hydrobasin":
+        freshwaterSV.set(1)
     else:
-        messagebox.showerror(title="An Error Has Occurred", message="Shapefile for this species could not be found, please select manually")
-        # open the file dialogue and ask user to find the correct file
-        newname = filedialog.askopenfilename(filetypes=[("All files","*.*"),("Shapefile files", "*.shp"),("Geocat files", "*.geocat"),("csv files", "*.csv")])
-        if newname == "":
-            return 1
-        # take the new name
-        actualfilenamelist = newname.split("/")
-        actualfilename = "text"
-        for part in actualfilenamelist:
-            if ".shp" in part:
-                actualfilename = part.replace(".shp","")
-            elif ".geocat" in part:
-                actualfilename = part.replace(".geocat","")
-            elif ".csv" in part:
-                actualfilename = part.replace(".csv","")
+        freshwaterSV.set(0)
 
-        shapefiletest = "%s/%s.shp" % (fp, actualfilename)
-        geocattestfile = "%s/%s.geocat" % (fp, actualfilename)
-        csvtestfile = "%s/%s.csv" % (fp, actualfilename)
-
-        # test to see what type of file this is
-        if os.path.isfile(shapefiletest):
-            # copy the original to the originalfiles folder
-            shutil.copy("%s/%s.cpg" % (fp, actualfilename), "%s/originalfiles/%s.cpg" % (fp, actualfilename))
-            shutil.copy("%s/%s.dbf" % (fp, actualfilename), "%s/originalfiles/%s.dbf" % (fp, actualfilename))
-            shutil.copy("%s/%s.prj" % (fp, actualfilename), "%s/originalfiles/%s.prj" % (fp, actualfilename))
-            shutil.copy("%s/%s.shp" % (fp, actualfilename), "%s/originalfiles/%s.shp" % (fp, actualfilename))
-            shutil.copy("%s/%s.shx" % (fp, actualfilename), "%s/originalfiles/%s.shx" % (fp, actualfilename))
-            print("Shapefile detected")
-
-            # rename the file within the folder
-            os.rename("%s/%s.cpg" % (fp, actualfilename), "%s/%s.cpg" % (fp, speciesname))
-            os.rename("%s/%s.dbf" % (fp, actualfilename), "%s/%s.dbf" % (fp, speciesname))
-            os.rename("%s/%s.prj" % (fp, actualfilename), "%s/%s.prj" % (fp, speciesname))
-            os.rename("%s/%s.shp" % (fp, actualfilename), "%s/%s.shp" % (fp, speciesname))
-            os.rename("%s/%s.shx" % (fp, actualfilename), "%s/%s.shx" % (fp, speciesname))
-
-            # copy this to pre-edit location
-            shutil.copy("%s/%s.cpg" % (fp, speciesname), "%s/shapefilespreediting/%s.cpg" % (fp, speciesname))
-            shutil.copy("%s/%s.dbf" % (fp, speciesname), "%s/shapefilespreediting/%s.dbf" % (fp, speciesname))
-            shutil.copy("%s/%s.prj" % (fp, speciesname), "%s/shapefilespreediting/%s.prj" % (fp, speciesname))
-            shutil.copy("%s/%s.shp" % (fp, speciesname), "%s/shapefilespreediting/%s.shp" % (fp, speciesname))
-            shutil.copy("%s/%s.shx" % (fp, speciesname), "%s/shapefilespreediting/%s.shx" % (fp, speciesname))
-
-            # create the spatial data file
-            spatialdata = geopandas.read_file(fp, driver='ESRI Shapefile', layer=speciesname)
-
-        # if shapefile doesn't exist then try to look for a geocat
-        elif os.path.isfile(geocattestfile):
-            spatialdata = convertGEOCAT(geocattestfile)
-            # save the resulting shapefile to file
-            spatialdata.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
-            # save to backup
-            spatialdata.to_file("%s/shapefilespreediting" % fp, driver='ESRI Shapefile', layer=speciesname)
-            # move the original file to the originals folder
-            os.rename(geocattestfile, "%s/originalfiles/%s.geocat" % (fp, actualfilename))
-            # print success to screen
-            print("Geocat file detected and successfully converted")
-
-        elif os.path.isfile(csvtestfile):
-            convertCSV(csvtestfile, actualfilename)
-            # save to file
-            spatialdata.to_file(fp, driver='ESRI Shapefile', layer=speciesname)
-            # save to backup
-            spatialdata.to_file("%s/shapefilespreediting" % fp, driver='ESRI Shapefile', layer=speciesname)
-            # move original file to originals folder
-            os.rename("%s/%s.csv" % (fp, actualfilename), "%s/originalfiles/%s.csv" % (fp, actualfilename))
-            # print success to screen
-            print("CSV file detected and successfully converted")
-
-        # delete the old files
-        for file in os.listdir(fp):
-            if actualfilename == file.split(".")[0]:
-                os.remove("%s/%s" % (fp, file))
+    # create the spatialdata file for use throughout
+    spatialdata = geopandas.read_file(str(filepath), driver='ESRI Shapefile', layer=speciesname)
 
     # create map object
     maporiginal = folium.Map([0, 0], tiles='Stamen Terrain')
@@ -5026,8 +5109,8 @@ def createtableandaddtomap(speciesname):
     testing1 = open("%s\\SpatialDataStore\\%s.html" % (filedir, speciesname),"w+")
     testing1.write(output)
     testing1.close()
-    # delete the temp file
 
+    # delete the temp file
     os.remove("%s/TempFiles/%s_temp.html" % (filedir, speciesname))
 
 
